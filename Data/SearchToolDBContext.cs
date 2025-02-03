@@ -15,7 +15,6 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugInsurance>DrugInsurances { get; set; }
         public DbSet<Insurance>Insurances { get; set;}
         public DbSet<Script> Scripts { get; set; }
-        public DbSet<ScriptItem> ScriptItems { get; set; }
         public DbSet<User> Users { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -122,54 +122,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.ToTable("Insurances");
                 });
 
-            modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<decimal>("Discount")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("DrugInsuranceDrugId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DrugInsuranceId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DrugInsuranceInsuranceId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("InsurancePay")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("NDCCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("Net")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("PatientPay")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ScriptId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScriptId");
-
-                    b.HasIndex("DrugInsuranceInsuranceId", "DrugInsuranceDrugId");
-
-                    b.ToTable("ScriptItems");
-                });
-
             modelBuilder.Entity("SearchTool_ServerSide.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -206,6 +158,34 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("Discount")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("DrugInsuranceDrugId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DrugInsuranceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DrugInsuranceInsuranceId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("InsurancePay")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("NDCCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Net")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("PatientPay")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("ScriptCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -219,6 +199,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("DrugInsuranceInsuranceId", "DrugInsuranceDrugId");
 
                     b.ToTable("Scripts");
                 });
@@ -251,11 +233,11 @@ namespace SearchTool_ServerSide.Migrations
                     b.Navigation("Insurance");
                 });
 
-            modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
+            modelBuilder.Entity("ServerSide.Models.Script", b =>
                 {
-                    b.HasOne("ServerSide.Models.Script", "Script")
+                    b.HasOne("SearchTool_ServerSide.Models.User", "User")
                         .WithMany()
-                        .HasForeignKey("ScriptId")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -266,17 +248,6 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired();
 
                     b.Navigation("DrugInsurance");
-
-                    b.Navigation("Script");
-                });
-
-            modelBuilder.Entity("ServerSide.Models.Script", b =>
-                {
-                    b.HasOne("SearchTool_ServerSide.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });

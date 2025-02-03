@@ -1,6 +1,8 @@
+using ServerSide.Model;
+
 namespace SearchTool_ServerSide.Models
 {
-    public class Drug
+    public class Drug : IEntity
     {
         public int Id { get; set; }
         public required string Name { get; set; }
