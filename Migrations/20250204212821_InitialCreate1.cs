@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
@@ -31,11 +30,33 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    name = table.Column<string>(type: "text", nullable: false)
+                    Name = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Insurances", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Scripts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Date = table.Column<string>(type: "text", nullable: true),
+                    ScriptCode = table.Column<string>(type: "text", nullable: true),
+                    RxNumber = table.Column<string>(type: "text", nullable: true),
+                    DrugName = table.Column<string>(type: "text", nullable: true),
+                    Insurance = table.Column<string>(type: "text", nullable: true),
+                    Prescriber = table.Column<string>(type: "text", nullable: true),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    NDCCode = table.Column<string>(type: "text", nullable: true),
+                    RxCui = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Scripts", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -85,7 +106,6 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     InsuranceId = table.Column<int>(type: "integer", nullable: false),
                     DrugId = table.Column<int>(type: "integer", nullable: false),
-                    Id = table.Column<int>(type: "integer", nullable: false),
                     NDCCode = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
@@ -105,43 +125,6 @@ namespace SearchTool_ServerSide.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.CreateTable(
-                name: "Scripts",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ScriptCode = table.Column<string>(type: "text", nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "numeric", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    InsurancePay = table.Column<decimal>(type: "numeric", nullable: false),
-                    Net = table.Column<decimal>(type: "numeric", nullable: false),
-                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
-                    PatientPay = table.Column<decimal>(type: "numeric", nullable: false),
-                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
-                    NDCCode = table.Column<string>(type: "text", nullable: false),
-                    DrugInsuranceId = table.Column<int>(type: "integer", nullable: false),
-                    DrugInsuranceInsuranceId = table.Column<int>(type: "integer", nullable: false),
-                    DrugInsuranceDrugId = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Scripts", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Scripts_DrugInsurances_DrugInsuranceInsuranceId_DrugInsuran~",
-                        columns: x => new { x.DrugInsuranceInsuranceId, x.DrugInsuranceDrugId },
-                        principalTable: "DrugInsurances",
-                        principalColumns: new[] { "InsuranceId", "DrugId" },
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_Scripts_Users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_DrugInsurances_DrugId",
                 table: "DrugInsurances",
@@ -151,26 +134,16 @@ namespace SearchTool_ServerSide.Migrations
                 name: "IX_Drugs_DrugClassId",
                 table: "Drugs",
                 column: "DrugClassId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Scripts_DrugInsuranceInsuranceId_DrugInsuranceDrugId",
-                table: "Scripts",
-                columns: new[] { "DrugInsuranceInsuranceId", "DrugInsuranceDrugId" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Scripts_UserId",
-                table: "Scripts",
-                column: "UserId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Scripts");
+                name: "DrugInsurances");
 
             migrationBuilder.DropTable(
-                name: "DrugInsurances");
+                name: "Scripts");
 
             migrationBuilder.DropTable(
                 name: "Users");

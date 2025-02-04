@@ -4,20 +4,17 @@ namespace ServerSide.Models
 {
     public class Script
     {
-        public int Id { get; set; }
-        public string ScriptCode { get; set; } = "none";
-        public DateTime Date { get; set; } = DateTime.UtcNow;
-        public decimal TotalPrice { get; set; }
-        public required int UserId { get; set; } = 1;
-        public User? User { get; set; }
-        public decimal InsurancePay { get; set; }
-        public decimal Net {get; set; }
-        public decimal Discount { get; set; }
-        public decimal PatientPay { get; set; }
+       public int Id { get; set; }
+        public string? Date { get; set; }
+        public string? ScriptCode { get; set; }
+        public string? RxNumber { get; set; }
+        public string? DrugName { get; set; }
+        public string? Insurance { get; set; }
+        public string? Prescriber { get; set; }
         public decimal Quantity { get; set; }
-        public required string NDCCode { get; set; }
-        public int DrugInsuranceId { get; set; }
-        public DrugInsurance? DrugInsurance{ get; set; }
+        public decimal AcquisitionCost { get; set; }
+        public string? NDCCode { get; set; }
+        public int RxCui { get; set; }
         
         
     }

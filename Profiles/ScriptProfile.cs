@@ -1,5 +1,4 @@
 using AutoMapper;
-using SearchTool_ServerSide.Dtos.DrugDtos;
 using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Profiles
@@ -8,8 +7,7 @@ namespace SearchTool_ServerSide.Profiles
     {
         public ScriptProfile()
         {
-            CreateMap<ScriptAddDto, Script>();
-            CreateMap<Script, ScriptAddDto>();
+            
         }
     }
 }

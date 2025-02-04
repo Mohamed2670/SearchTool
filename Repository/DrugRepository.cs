@@ -8,7 +8,6 @@ using CsvHelper.Configuration.Attributes;
 using CsvHelper.TypeConversion;
 using Microsoft.EntityFrameworkCore;
 using SearchTool_ServerSide.Data;
-using SearchTool_ServerSide.Dtos.DrugDtos;
 using SearchTool_ServerSide.Models;
 using ServerSide.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -55,7 +54,7 @@ namespace SearchTool_ServerSide.Repository
                 .Select(d => d.Key)
                 .Distinct()
                 .ToListAsync();
-            var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).Select(i => i.name).ToListAsync();
+            var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).Select(i => i.Name).ToListAsync();
             return ret;
         }
         public async Task SaveData()
@@ -104,7 +103,12 @@ namespace SearchTool_ServerSide.Repository
 
             foreach (var record in records)
             {
+                string temp = record.NDC.Replace("-", "");
+                temp = temp.TrimStart('0');
+
+
                 if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
+
                 {
                     drugClass = new DrugClass { Name = record.DrugClass };
                     context.DrugClasses.Add(drugClass);
@@ -113,7 +117,7 @@ namespace SearchTool_ServerSide.Repository
                 var drug = new Drug
                 {
                     Name = record.Name,
-                    NDC = record.NDC.Replace("-",""),
+                    NDC = temp,
                     Form = record.Form,
                     Strength = record.Strength,
                     ACQ = record.ACQ,
@@ -140,26 +144,27 @@ namespace SearchTool_ServerSide.Repository
 
             using var reader = new StreamReader(filePath);
             using var csv = new CsvReader(reader, config);
-
-            var records = csv.GetRecords<DrugInsuranceRecord>().ToList();
-
+            var records = csv.GetRecords<ScriptRecord>().ToList();
+            int cnt = 0;
             foreach (var record in records)
             {
                 // Check if insurance exists
                 var insurance = await _context.Insurances
-                    .FirstOrDefaultAsync(i => i.name == record.InsuranceName);
+                    .FirstOrDefaultAsync(i => i.Name == record.Insurance);
 
                 if (insurance == null)
                 {
-                    insurance = new Insurance { name = record.InsuranceName };
+                    insurance = new Insurance { Name = record.Insurance };
                     _context.Insurances.Add(insurance);
                     await _context.SaveChangesAsync();
                 }
 
                 // Check if drug exists
                 var drug = await _context.Drugs.FirstOrDefaultAsync(i => i.NDC == record.NDCCode);
-                if (drug == null)
+
+                if (drug ==null)
                 {
+
                     drug = new Drug
                     {
                         Name = record.DrugName,
@@ -189,9 +194,35 @@ namespace SearchTool_ServerSide.Repository
                     };
                     _context.DrugInsurances.Add(drugInsurance);
                     await _context.SaveChangesAsync();
+
                 }
 
+                var script = new Script
+                {
+                    Date = record.Date,
+                    ScriptCode = record.Script,
+                    RxNumber = record.RxNumber,
+                    DrugName = record.DrugName,
+                    Insurance = record.Insurance,
+                    Prescriber = record.Prescriber,
+                    Quantity = record.Quantity,
+                    AcquisitionCost = record.AcquisitionCost,
+                    NDCCode = record.NDCCode,
+                    RxCui = record.RxCui ?? 0
+                };
+                _context.Scripts.Add(script);
+                cnt++;
+                if (cnt == 1000)
+                {
+                    cnt = 0;
+                    await _context.SaveChangesAsync();
+
+                }
+
+
             }
+            await _context.SaveChangesAsync();
+
         }
 
 
@@ -206,7 +237,38 @@ namespace SearchTool_ServerSide.Repository
             [Name("NDC")]
             public string NDCCode { get; set; }
         }
+        public class ScriptRecord
+        {
+            [Name("Date")]
+            public string Date { get; set; }
 
+            [Name("Script")]
+            public string Script { get; set; }
+
+            [Name("R#")]
+            public string RxNumber { get; set; }
+
+            [Name("Drug Name")]
+            public string DrugName { get; set; }
+
+            [Name("Ins")]
+            public string Insurance { get; set; }
+
+            [Name("Prescriber")]
+            public string Prescriber { get; set; }
+
+            [Name("Qty")]
+            public decimal Quantity { get; set; }
+
+            [Name("ACQ")]
+            public decimal AcquisitionCost { get; set; }
+
+            [Name("NDC")]
+            public string NDCCode { get; set; }
+
+            [Name("RxCui")]
+            public int? RxCui { get; set; }
+        }
 
         public class DrugCs
         {

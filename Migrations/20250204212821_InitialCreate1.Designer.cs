@@ -12,7 +12,7 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250203225251_InitialCreate1")]
+    [Migration("20250204212821_InitialCreate1")]
     partial class InitialCreate1
     {
         /// <inheritdoc />
@@ -94,9 +94,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
                     b.Property<string>("NDCCode")
                         .IsRequired()
                         .HasColumnType("text");
@@ -116,7 +113,7 @@ namespace SearchTool_ServerSide.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("name")
+                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -158,52 +155,37 @@ namespace SearchTool_ServerSide.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("Discount")
+                    b.Property<decimal>("AcquisitionCost")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("DrugInsuranceDrugId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Date")
+                        .HasColumnType("text");
 
-                    b.Property<int>("DrugInsuranceId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DrugName")
+                        .HasColumnType("text");
 
-                    b.Property<int>("DrugInsuranceInsuranceId")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("InsurancePay")
-                        .HasColumnType("numeric");
+                    b.Property<string>("Insurance")
+                        .HasColumnType("text");
 
                     b.Property<string>("NDCCode")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Net")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("PatientPay")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("ScriptCode")
-                        .IsRequired()
+                    b.Property<string>("Prescriber")
                         .HasColumnType("text");
 
-                    b.Property<decimal>("TotalPrice")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("UserId")
+                    b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
+                    b.Property<int>("RxCui")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RxNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ScriptCode")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("DrugInsuranceInsuranceId", "DrugInsuranceDrugId");
 
                     b.ToTable("Scripts");
                 });
@@ -234,25 +216,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.Navigation("Drug");
 
                     b.Navigation("Insurance");
-                });
-
-            modelBuilder.Entity("ServerSide.Models.Script", b =>
-                {
-                    b.HasOne("SearchTool_ServerSide.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SearchTool_ServerSide.Models.DrugInsurance", "DrugInsurance")
-                        .WithMany()
-                        .HasForeignKey("DrugInsuranceInsuranceId", "DrugInsuranceDrugId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DrugInsurance");
-
-                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }
