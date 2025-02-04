@@ -162,7 +162,7 @@ namespace SearchTool_ServerSide.Repository
                 // Check if drug exists
                 var drug = await _context.Drugs.FirstOrDefaultAsync(i => i.NDC == record.NDCCode);
 
-                if (drug ==null)
+                if (drug == null)
                 {
 
                     drug = new Drug
@@ -208,7 +208,12 @@ namespace SearchTool_ServerSide.Repository
                     Quantity = record.Quantity,
                     AcquisitionCost = record.AcquisitionCost,
                     NDCCode = record.NDCCode,
-                    RxCui = record.RxCui ?? 0
+                    RxCui = record.RxCui ?? 0,
+                    Discount = record.Discount,
+                    InsurancePayment = record.InsurancePayment,
+                    PatientPayment = record.PatientPayment,
+                    DrugClass = record.DrugClass,
+                    NetProfit = record.NetProfit
                 };
                 _context.Scripts.Add(script);
                 cnt++;
@@ -268,6 +273,21 @@ namespace SearchTool_ServerSide.Repository
 
             [Name("RxCui")]
             public int? RxCui { get; set; }
+
+            [Name("Discount")]
+            public decimal Discount { get; set; }
+
+            [Name("Ins Pay")]
+            public decimal InsurancePayment { get; set; }
+
+            [Name("Pat Pay")]
+            public decimal PatientPayment { get; set; }
+
+            [Name("class")]
+            public string DrugClass { get; set; }
+
+            [Name("Net_profit")]
+            public decimal NetProfit { get; set; }
         }
 
         public class DrugCs
