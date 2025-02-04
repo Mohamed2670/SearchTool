@@ -113,7 +113,7 @@ namespace SearchTool_ServerSide.Repository
                 var drug = new Drug
                 {
                     Name = record.Name,
-                    NDC = record.NDC,
+                    NDC = record.NDC.Replace("-",""),
                     Form = record.Form,
                     Strength = record.Strength,
                     ACQ = record.ACQ,
@@ -129,93 +129,83 @@ namespace SearchTool_ServerSide.Repository
             await context.SaveChangesAsync();
 
         }
-        public async Task temp2()
-        {
-            string filePath = "scripts.csv";
-            var scripts = LoadScriptsFromCsv(filePath);
 
-            Console.WriteLine("Scripts loaded from CSV.");
-
-            var configuration = new ConfigurationBuilder()
-                   .SetBasePath(Directory.GetCurrentDirectory())
-                   .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                   .Build();
-
-            var connectionString = configuration.GetConnectionString("SearchTool");
-
-            var options = new DbContextOptionsBuilder<SearchToolDBContext>()
-                .UseNpgsql(connectionString)
-                .Options;
-
-            using var context = new SearchToolDBContext(options);
-
-            // Group scripts by ScriptCode and select the one with the latest Date
-            var latestScripts = scripts
-                .GroupBy(s => s.ScriptCode)
-                .Select(g => g.OrderByDescending(s => s.Date).First())
-                .ToList();
-
-            foreach (var script in latestScripts)
-            {
-                var existingScript = await context.Scripts
-                    .FirstOrDefaultAsync(s => s.ScriptCode == script.ScriptCode);
-                DateTime parsedDate;
-                string dateString = script.Date.Split(' ')[0];
-                if (!DateTime.TryParseExact(dateString, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
-                {
-                    Console.WriteLine($"Warning: Invalid date format '{script.Date}', skipping entry.");
-                    continue;
-                }
-
-                if (existingScript == null)
-                {
-                    var item = _mapper.Map<Script>(script);
-                    item.Date = parsedDate;
-                    await context.Scripts.AddAsync(item);
-                    Console.WriteLine($"Added script: {script.ScriptCode}");
-                }
-                else if (existingScript.Date < parsedDate)
-                {
-                    // Update existing script with newer data
-                    existingScript.Date =parsedDate;
-                    existingScript.TotalPrice = script.TotalPrice;
-                    existingScript.UserId = script.UserId;
-                    existingScript.InsurancePay = script.InsurancePay;
-                    existingScript.Net = script.Net;
-                    existingScript.Discount = script.Discount;
-                    existingScript.PatientPay = script.PatientPay;
-                    existingScript.Quantity = script.Quantity;
-                    existingScript.NDCCode = script.NDCCode;
-                    existingScript.DrugInsuranceId = script.DrugInsuranceId;
-
-                    context.Scripts.Update(existingScript);
-                    Console.WriteLine($"Updated script: {script.ScriptCode}");
-                }
-                else
-                {
-                    Console.WriteLine($"Script {script.ScriptCode} is up-to-date, skipping.");
-                }
-            }
-
-            await context.SaveChangesAsync();
-            Console.WriteLine("Data has been successfully stored in PostgreSQL.");
-        }
-
-        public List<ScriptAddDto> LoadScriptsFromCsv(string filePath)
+        public async Task ImportDrugInsuranceAsync(string filePath = "scripts.csv")
         {
             var config = new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 HasHeaderRecord = true,
-                HeaderValidated = null,
-                MissingFieldFound = null,
+                HeaderValidated = null, // Ignore missing headers
             };
 
             using var reader = new StreamReader(filePath);
             using var csv = new CsvReader(reader, config);
-            var records = csv.GetRecords<ScriptAddDto>();
-            return new List<ScriptAddDto>(records);
+
+            var records = csv.GetRecords<DrugInsuranceRecord>().ToList();
+
+            foreach (var record in records)
+            {
+                // Check if insurance exists
+                var insurance = await _context.Insurances
+                    .FirstOrDefaultAsync(i => i.name == record.InsuranceName);
+
+                if (insurance == null)
+                {
+                    insurance = new Insurance { name = record.InsuranceName };
+                    _context.Insurances.Add(insurance);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Check if drug exists
+                var drug = await _context.Drugs.FirstOrDefaultAsync(i => i.NDC == record.NDCCode);
+                if (drug == null)
+                {
+                    drug = new Drug
+                    {
+                        Name = record.DrugName,
+                        NDC = record.NDCCode,
+                        Form = null, // Default values, adjust if needed
+                        Strength = null,
+                        ClassId = 0,
+                        ACQ = 0,
+                        AWP = 0,
+                        Rxcui = 0
+                    };
+                    _context.Drugs.Add(drug);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Check if drug insurance entry exists
+                var exists = await _context.DrugInsurances
+                    .AnyAsync(di => di.InsuranceId == insurance.Id && di.DrugId == drug.Id);
+
+                if (!exists)
+                {
+                    var drugInsurance = new DrugInsurance
+                    {
+                        InsuranceId = insurance.Id,
+                        DrugId = drug.Id,
+                        NDCCode = record.NDCCode
+                    };
+                    _context.DrugInsurances.Add(drugInsurance);
+                    await _context.SaveChangesAsync();
+                }
+
+            }
         }
 
+
+        public class DrugInsuranceRecord
+        {
+            [Name("Ins")]
+            public string InsuranceName { get; set; }
+
+            [Name("Drug Name")]
+            public string DrugName { get; set; }
+
+            [Name("NDC")]
+            public string NDCCode { get; set; }
+        }
 
 
         public class DrugCs

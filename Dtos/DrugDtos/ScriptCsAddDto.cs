@@ -1,9 +1,9 @@
 namespace SearchTool_ServerSide.Dtos.DrugDtos
 {
-    public class ScriptAddDto
+    public class ScriptCsAddDto
     {
-        public string ScriptCode { get; set; } = "none";
-        public DateTime Date { get; set; }
+        public string ScriptCode { get; set; }
+        public string Date { get; set; }
         public decimal TotalPrice { get; set; }
         public int UserId { get; set; }
         public decimal InsurancePay { get; set; }

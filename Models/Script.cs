@@ -5,7 +5,7 @@ namespace ServerSide.Models
     public class Script
     {
         public int Id { get; set; }
-        public required string ScriptCode { get; set; }
+        public string ScriptCode { get; set; } = "none";
         public DateTime Date { get; set; } = DateTime.UtcNow;
         public decimal TotalPrice { get; set; }
         public required int UserId { get; set; } = 1;

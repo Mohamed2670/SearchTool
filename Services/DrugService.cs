@@ -10,7 +10,11 @@ namespace SearchTool_ServerSide.Services
         }
         public async Task Procces2()
         {
-            await _drugRepository.temp2();
+             await _drugRepository.ImportDrugInsuranceAsync();
+        }
+        public async Task SearchName( string name )
+        {
+
         }
     }
 }

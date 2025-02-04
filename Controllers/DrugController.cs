@@ -19,5 +19,10 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.Procces2();
             return Ok();
         }
+        // [HttpGet("searchByName")]
+        // public async Task<IActionResult> SearchByname(string name)
+        // {
+
+        // }
     }
 }
