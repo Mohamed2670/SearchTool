@@ -43,16 +43,21 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Date = table.Column<string>(type: "text", nullable: true),
-                    ScriptCode = table.Column<string>(type: "text", nullable: true),
-                    RxNumber = table.Column<string>(type: "text", nullable: true),
-                    DrugName = table.Column<string>(type: "text", nullable: true),
-                    Insurance = table.Column<string>(type: "text", nullable: true),
-                    Prescriber = table.Column<string>(type: "text", nullable: true),
-                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    Date = table.Column<string>(type: "text", nullable: false),
+                    ScriptCode = table.Column<string>(type: "text", nullable: false),
+                    RxNumber = table.Column<string>(type: "text", nullable: false),
+                    DrugName = table.Column<string>(type: "text", nullable: false),
+                    Insurance = table.Column<string>(type: "text", nullable: false),
+                    Prescriber = table.Column<string>(type: "text", nullable: false),
+                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
                     AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
-                    NDCCode = table.Column<string>(type: "text", nullable: true),
-                    RxCui = table.Column<int>(type: "integer", nullable: false)
+                    NDCCode = table.Column<string>(type: "text", nullable: false),
+                    RxCui = table.Column<int>(type: "integer", nullable: false),
+                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
+                    InsurancePayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    PatientPayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    DrugClass = table.Column<string>(type: "text", nullable: false),
+                    NetProfit = table.Column<decimal>(type: "numeric", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -106,7 +111,8 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     InsuranceId = table.Column<int>(type: "integer", nullable: false),
                     DrugId = table.Column<int>(type: "integer", nullable: false),
-                    NDCCode = table.Column<string>(type: "text", nullable: false)
+                    NDCCode = table.Column<string>(type: "text", nullable: false),
+                    DrugName = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {

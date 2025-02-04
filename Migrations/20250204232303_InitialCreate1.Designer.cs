@@ -12,8 +12,8 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250204215713_InitialCreate2")]
-    partial class InitialCreate2
+    [Migration("20250204232303_InitialCreate1")]
+    partial class InitialCreate1
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -93,6 +93,10 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("DrugName")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("NDCCode")
                         .IsRequired()

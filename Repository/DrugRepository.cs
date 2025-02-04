@@ -29,14 +29,7 @@ namespace SearchTool_ServerSide.Repository
                .Where(x => x.Name.ToLower().Contains(name.ToLower()))
                .ToListAsync();
         }
-        // public async Task<ICollection<DrugInsurance>> GetAllNDCByDrugName(string name)
-        // {
-        //     return await _context.DrugInsurances
-        //         .Where(di => di.Drug != null && di.Drug.Name.ToLower() == name.ToLower())
-        //         .Select(di => di.NDCCode)
-        //         .Distinct()
-        //         .ToListAsync();
-        // }
+
         public async Task<ICollection<string>> GetAllNDCByDrugName(string name)
         {
             return await _context.Drugs
@@ -46,10 +39,26 @@ namespace SearchTool_ServerSide.Repository
                 .Distinct()
                 .ToListAsync();
         }
+
+        public async Task<ICollection<Insurance>> GetDrugInsurances(string name)
+        {
+            // get insurance name by drug name
+            var items = await _context.DrugInsurances
+                .Where(d => d.DrugName == name)
+                .GroupBy(d => d.InsuranceId)
+                .Select(d => d.Key)
+                .Distinct()
+                .ToListAsync();
+
+            // get insurance name by id     
+            var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).ToListAsync();
+            return ret;       
+        }
+
         public async Task<ICollection<string>> GetAllInsuranceByNDC(string ndc)
         {
             var items = await _context.DrugInsurances
-                  .Where(d => d.NDCCode == ndc)
+                .Where(d => d.NDCCode == ndc)
                 .GroupBy(d => d.InsuranceId)
                 .Select(d => d.Key)
                 .Distinct()
@@ -190,7 +199,8 @@ namespace SearchTool_ServerSide.Repository
                     {
                         InsuranceId = insurance.Id,
                         DrugId = drug.Id,
-                        NDCCode = record.NDCCode
+                        NDCCode = record.NDCCode,
+                        DrugName = record.DrugName
                     };
                     _context.DrugInsurances.Add(drugInsurance);
                     await _context.SaveChangesAsync();

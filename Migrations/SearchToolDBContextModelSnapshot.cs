@@ -91,6 +91,10 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("DrugName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("NDCCode")
                         .IsRequired()
                         .HasColumnType("text");
