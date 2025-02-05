@@ -12,8 +12,8 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250204232303_InitialCreate1")]
-    partial class InitialCreate1
+    [Migration("20250205150034_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,32 @@ namespace SearchTool_ServerSide.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.ClassInsurance", b =>
+                {
+                    b.Property<int>("InsuranceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("BestNet")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("ClassName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("InsuranceName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("InsuranceId", "ClassId");
+
+                    b.HasIndex("ClassId");
+
+                    b.ToTable("ClassInsurances");
+                });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.Drug", b =>
                 {
@@ -56,8 +82,8 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("Rxcui")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("Rxcui")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("Strength")
                         .HasColumnType("text");
@@ -94,11 +120,47 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
 
+                    b.Property<decimal>("AcquisitionCost")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Discount")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("DrugClass")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("DrugName")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<decimal>("InsurancePayment")
+                        .HasColumnType("numeric");
+
                     b.Property<string>("NDCCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Net")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("PatientPayment")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Prescriber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("RxCui")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("date")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -201,8 +263,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("RxCui")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("RxCui")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("RxNumber")
                         .IsRequired()
@@ -215,6 +277,25 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Scripts");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.ClassInsurance", b =>
+                {
+                    b.HasOne("SearchTool_ServerSide.Models.DrugClass", "DrugClass")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SearchTool_ServerSide.Models.Insurance", "Insurance")
+                        .WithMany()
+                        .HasForeignKey("InsuranceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DrugClass");
+
+                    b.Navigation("Insurance");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.Drug", b =>

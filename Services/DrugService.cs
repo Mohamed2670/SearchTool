@@ -11,9 +11,9 @@ namespace SearchTool_ServerSide.Services
         }
         public async Task Procces2()
         {
-             await _drugRepository.ImportDrugInsuranceAsync();
+            await _drugRepository.ImportDrugInsuranceAsync();
         }
-        public async Task<ICollection<Drug>> SearchName( string name )
+        public async Task<ICollection<Drug>> SearchName(string name)
         {
             var items = await _drugRepository.GetDrugsByName(name);
             return items;
@@ -27,9 +27,54 @@ namespace SearchTool_ServerSide.Services
 
         public async Task<ICollection<string>> GetDrugNDCs(string name)
         {
+            Console.WriteLine("here : ");
             var items = await _drugRepository.GetAllNDCByDrugName(name);
             return items;
         }
 
+        public async Task<DrugInsurance> GetBySelection(string name, string ndc, string insuranceName)
+        {
+            var item = await _drugRepository.GetBySelection(name, ndc, insuranceName);
+            return item;
+        }
+
+        internal async Task<ICollection<DrugInsurance>> GetAltrantives(string className, int insuranceId)
+        {
+            var items = await _drugRepository.GetAltrantives(className, insuranceId);
+            return items;
+
+        }
+
+
+
+        internal async Task<Drug> SearchByIdNdc(int id, string ndc)
+        {
+            var item = await _drugRepository.SearchByIdNdc(id, ndc);
+            return item;
+        }
+
+        internal async Task<Drug> SearchByNdc(string ndc)
+        {
+            var item = await _drugRepository.GetDrugByNdc(ndc);
+            return item;
+        }
+
+        internal async Task<DrugInsurance> GetDetails(string ndc, int insuranceId)
+        {
+            var item = await _drugRepository.GetDetails(ndc, insuranceId);
+            return item;
+        }
+
+        internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
+        {
+            var items = await _drugRepository.getDrugNDCsByNameInsuance(drugName, insurnaceId);
+            return items;
+        }
+
+        internal async Task<DrugClass> getClassbyId(int id)
+        {
+            var item = await _drugRepository.getClassbyId(id);
+            return item;
+        }
     }
 }

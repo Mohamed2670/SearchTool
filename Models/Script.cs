@@ -14,7 +14,7 @@ namespace ServerSide.Models
         public decimal Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public string NDCCode { get; set; }
-        public int RxCui { get; set; }
+        public decimal RxCui { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }
         public decimal PatientPayment { get; set; }

@@ -6,7 +6,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SearchTool_ServerSide.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate1 : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -52,7 +52,7 @@ namespace SearchTool_ServerSide.Migrations
                     Quantity = table.Column<decimal>(type: "numeric", nullable: false),
                     AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
                     NDCCode = table.Column<string>(type: "text", nullable: false),
-                    RxCui = table.Column<int>(type: "integer", nullable: false),
+                    RxCui = table.Column<decimal>(type: "numeric", nullable: false),
                     Discount = table.Column<decimal>(type: "numeric", nullable: false),
                     InsurancePayment = table.Column<decimal>(type: "numeric", nullable: false),
                     PatientPayment = table.Column<decimal>(type: "numeric", nullable: false),
@@ -93,7 +93,7 @@ namespace SearchTool_ServerSide.Migrations
                     DrugClassId = table.Column<int>(type: "integer", nullable: true),
                     ACQ = table.Column<decimal>(type: "numeric", nullable: false),
                     AWP = table.Column<decimal>(type: "numeric", nullable: false),
-                    Rxcui = table.Column<int>(type: "integer", nullable: false)
+                    Rxcui = table.Column<decimal>(type: "numeric", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -106,13 +106,51 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ClassInsurances",
+                columns: table => new
+                {
+                    InsuranceId = table.Column<int>(type: "integer", nullable: false),
+                    ClassId = table.Column<int>(type: "integer", nullable: false),
+                    ClassName = table.Column<string>(type: "text", nullable: false),
+                    InsuranceName = table.Column<string>(type: "text", nullable: false),
+                    BestNet = table.Column<decimal>(type: "numeric", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassInsurances", x => new { x.InsuranceId, x.ClassId });
+                    table.ForeignKey(
+                        name: "FK_ClassInsurances_DrugClasses_ClassId",
+                        column: x => x.ClassId,
+                        principalTable: "DrugClasses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ClassInsurances_Insurances_InsuranceId",
+                        column: x => x.InsuranceId,
+                        principalTable: "Insurances",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DrugInsurances",
                 columns: table => new
                 {
                     InsuranceId = table.Column<int>(type: "integer", nullable: false),
                     DrugId = table.Column<int>(type: "integer", nullable: false),
                     NDCCode = table.Column<string>(type: "text", nullable: false),
-                    DrugName = table.Column<string>(type: "text", nullable: false)
+                    DrugName = table.Column<string>(type: "text", nullable: false),
+                    ClassId = table.Column<int>(type: "integer", nullable: false),
+                    Net = table.Column<decimal>(type: "numeric", nullable: false),
+                    date = table.Column<string>(type: "text", nullable: false),
+                    Prescriber = table.Column<string>(type: "text", nullable: false),
+                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
+                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    RxCui = table.Column<decimal>(type: "numeric", nullable: true),
+                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
+                    InsurancePayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    PatientPayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    DrugClass = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -132,6 +170,11 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_ClassInsurances_ClassId",
+                table: "ClassInsurances",
+                column: "ClassId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DrugInsurances_DrugId",
                 table: "DrugInsurances",
                 column: "DrugId");
@@ -145,6 +188,9 @@ namespace SearchTool_ServerSide.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "ClassInsurances");
+
             migrationBuilder.DropTable(
                 name: "DrugInsurances");
 

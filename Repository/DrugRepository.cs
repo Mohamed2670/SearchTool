@@ -1,6 +1,7 @@
 using System.Formats.Asn1;
 using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using AutoMapper;
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -26,18 +27,20 @@ namespace SearchTool_ServerSide.Repository
         public async Task<ICollection<Drug>> GetDrugsByName(string name)
         {
             return await _context.Drugs
-               .Where(x => x.Name.ToLower().Contains(name.ToLower()))
+               .Where(x => x.Name.ToLower().Contains(name.ToLower())).
+               Distinct()
                .ToListAsync();
         }
 
         public async Task<ICollection<string>> GetAllNDCByDrugName(string name)
         {
-            return await _context.Drugs
+            var items = await _context.Drugs
                   .Where(d => d.Name == name)
                 .GroupBy(d => d.NDC)
                 .Select(d => d.Key)
                 .Distinct()
                 .ToListAsync();
+            return items;
         }
 
         public async Task<ICollection<Insurance>> GetDrugInsurances(string name)
@@ -52,9 +55,13 @@ namespace SearchTool_ServerSide.Repository
 
             // get insurance name by id     
             var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).ToListAsync();
-            return ret;       
+            return ret;
         }
-
+        public async Task<decimal> GetBestNet(int insuranceId, int classId)
+        {
+            var item = await _context.ClassInsurances.FirstOrDefaultAsync(x => x.InsuranceId == insuranceId && x.ClassId == classId);
+            return item.BestNet;
+        }
         public async Task<ICollection<string>> GetAllInsuranceByNDC(string ndc)
         {
             var items = await _context.DrugInsurances
@@ -77,8 +84,8 @@ namespace SearchTool_ServerSide.Repository
                 var config = new CsvConfiguration(CultureInfo.InvariantCulture)
                 {
                     HasHeaderRecord = true,
-                    HeaderValidated = null, // تجاهل الأخطاء الخاصة بالرؤوس
-                    MissingFieldFound = null, // تجاهل الحقول المفقودة
+                    HeaderValidated = null,
+                    MissingFieldFound = null,
                 };
 
                 using var reader = new StreamReader(filePath);
@@ -121,6 +128,7 @@ namespace SearchTool_ServerSide.Repository
                 {
                     drugClass = new DrugClass { Name = record.DrugClass };
                     context.DrugClasses.Add(drugClass);
+                    await context.SaveChangesAsync();
                     drugClasses[record.DrugClass] = drugClass;
                 }
                 var drug = new Drug
@@ -132,7 +140,7 @@ namespace SearchTool_ServerSide.Repository
                     ACQ = record.ACQ,
                     AWP = record.AWP,
                     Rxcui = record.Rxcui,
-                    DrugClass = drugClass
+                    ClassId = drugClass.Id,
                 };
                 var item = await context.Drugs.FirstOrDefaultAsync(x => x.NDC == drug.NDC);
                 if (item != null)
@@ -170,6 +178,14 @@ namespace SearchTool_ServerSide.Repository
 
                 // Check if drug exists
                 var drug = await _context.Drugs.FirstOrDefaultAsync(i => i.NDC == record.NDCCode);
+                var classItem = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Name == record.DrugClass);
+                if (classItem == null)
+                {
+                    classItem = new DrugClass { Name = record.DrugClass };
+                    _context.DrugClasses.Add(classItem);
+                    await _context.SaveChangesAsync();
+
+                }
 
                 if (drug == null)
                 {
@@ -178,12 +194,12 @@ namespace SearchTool_ServerSide.Repository
                     {
                         Name = record.DrugName,
                         NDC = record.NDCCode,
-                        Form = null, // Default values, adjust if needed
+                        Form = null,
                         Strength = null,
-                        ClassId = 0,
-                        ACQ = 0,
+                        ClassId = classItem.Id,
+                        ACQ = record.AcquisitionCost,
                         AWP = 0,
-                        Rxcui = 0
+                        Rxcui = record.RxCui
                     };
                     _context.Drugs.Add(drug);
                     await _context.SaveChangesAsync();
@@ -191,22 +207,85 @@ namespace SearchTool_ServerSide.Repository
 
                 // Check if drug insurance entry exists
                 var exists = await _context.DrugInsurances
-                    .AnyAsync(di => di.InsuranceId == insurance.Id && di.DrugId == drug.Id);
+                    .FirstOrDefaultAsync(di => di.InsuranceId == insurance.Id && di.DrugId == drug.Id);
 
-                if (!exists)
+                if (classItem == null)
+                {
+                    throw new InvalidOperationException($"Drug class with ID {drug.ClassId} not found.");
+                }
+                if (exists == null)
                 {
                     var drugInsurance = new DrugInsurance
                     {
                         InsuranceId = insurance.Id,
                         DrugId = drug.Id,
                         NDCCode = record.NDCCode,
-                        DrugName = record.DrugName
+                        DrugName = record.DrugName,
+                        Net = record.NetProfit,
+                        ClassId = classItem.Id,
+                        date = record.Date, // string type
+                        Prescriber = record.Prescriber,
+                        Quantity = record.Quantity,
+                        AcquisitionCost = record.AcquisitionCost,
+                        RxCui = record.RxCui ?? 0,
+                        Discount = record.Discount,
+                        InsurancePayment = record.InsurancePayment,
+                        PatientPayment = record.PatientPayment,
+                        DrugClass = record.DrugClass
                     };
+                    // Console.WriteLine(drugInsurance.date + " : " + record.Date);
+                    // Console.ReadKey();
                     _context.DrugInsurances.Add(drugInsurance);
                     await _context.SaveChangesAsync();
 
                 }
+                else
+                {
+                    DateTime existsDate, recordDate;
+                    bool isExistsDateValid = DateTime.TryParseExact(exists.date, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out existsDate);
+                    bool isRecordDateValid = DateTime.TryParseExact(record.Date, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out recordDate);
+                    // Console.WriteLine(existsDate + " : " + recordDate);
+                    // Console.ReadKey();
+                    if (exists != null && isExistsDateValid && isRecordDateValid && existsDate < recordDate) // take month day year
+                    {
+                        exists.Net = record.NetProfit;
+                        exists.AcquisitionCost = record.AcquisitionCost;
+                        exists.Discount = record.Discount;
+                        exists.InsurancePayment = record.InsurancePayment;
+                        exists.PatientPayment = record.PatientPayment;
+                        exists.date = record.Date;
+                        _context.DrugInsurances.Update(exists);
+                    }
+                }
+                var ClassInsuranceExists = await _context.ClassInsurances.FirstOrDefaultAsync(x => x.InsuranceId == insurance.Id && x.ClassId == classItem.Id);
+                if (ClassInsuranceExists == null)
+                {
+                    var classInsurance = new ClassInsurance
+                    {
+                        InsuranceId = insurance.Id,
+                        InsuranceName = insurance.Name,
+                        ClassId = classItem.Id,
+                        ClassName = classItem.Name,
+                        BestNet = record.NetProfit
+                    };
+                    // Console.WriteLine(classItem.Id + " : " + classItem.Name);
+                    // Console.WriteLine(drug.Id + " : " + drug.Name);
+                    // Console.WriteLine(classInsurance.InsuranceName + " : " + classInsurance.InsuranceId + " : " + classInsurance.BestNet);
+                    // Console.WriteLine(classInsurance.ClassId + " : " + classInsurance.ClassName );
 
+                    // Console.ReadKey();
+                    _context.ClassInsurances.Add(classInsurance);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    decimal HiestNet = Math.Max(record.NetProfit, ClassInsuranceExists.BestNet);
+
+                    ClassInsuranceExists.BestNet = Math.Max(record.NetProfit, ClassInsuranceExists.BestNet);
+
+                    _context.ClassInsurances.Update(ClassInsuranceExists);
+                    await _context.SaveChangesAsync();
+                }
                 var script = new Script
                 {
                     Date = record.Date,
@@ -240,6 +319,58 @@ namespace SearchTool_ServerSide.Repository
 
         }
 
+        public async Task<DrugInsurance> GetBySelection(string name, string ndc, string insuranceName)
+        {
+            var insurance = await _context.Insurances.FirstOrDefaultAsync(x => x.Name == insuranceName);
+            var item = await _context.DrugInsurances.FirstOrDefaultAsync(x => x.DrugName == name && x.NDCCode == ndc && x.InsuranceId == insurance.Id);
+            return item;
+        }
+
+        public async Task<ICollection<DrugInsurance>> GetAltrantives(string className, int insuranceId)
+        {
+            var classItem = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Name == className);
+            if (classItem == null)
+            {
+                throw new InvalidOperationException($"Drug class with name {className} not found.");
+            }
+            var items = await _context.DrugInsurances
+                .Where(x => x.ClassId == classItem.Id && x.InsuranceId == insuranceId).
+                GroupBy(x => x.DrugName).Select(g => g.First())
+                .ToListAsync();
+
+            return items;
+        }
+
+        internal async Task<Drug> SearchByIdNdc(int id, string ndc)
+        {
+            var item = await _context.Drugs.FirstOrDefaultAsync(x => x.Id == id && x.NDC == ndc);
+            return item;
+        }
+
+        internal async Task<Drug> GetDrugByNdc(string ndc)
+        {
+            var item = await _context.Drugs.FirstOrDefaultAsync(x => x.NDC == ndc);
+            return item;
+        }
+
+        internal async Task<DrugInsurance> GetDetails(string ndc, int insuranceId)
+        {
+            var item = await _context.DrugInsurances.FirstOrDefaultAsync(x => x.NDCCode == ndc && x.InsuranceId == insuranceId);
+            return item;
+        }
+
+        internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
+        {
+            var items = await _context.DrugInsurances.Where(x => x.InsuranceId == insurnaceId && x.DrugName == drugName).
+            GroupBy(x => x.NDCCode).Select(d => d.Key).ToListAsync();
+            return items;
+        }
+
+        internal async Task<DrugClass> getClassbyId(int id)
+        {
+            var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id==id);
+            return item;
+        }
 
         public class DrugInsuranceRecord
         {
@@ -282,7 +413,7 @@ namespace SearchTool_ServerSide.Repository
             public string NDCCode { get; set; }
 
             [Name("RxCui")]
-            public int? RxCui { get; set; }
+            public decimal? RxCui { get; set; }
 
             [Name("Discount")]
             public decimal Discount { get; set; }
