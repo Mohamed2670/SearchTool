@@ -310,7 +310,6 @@ namespace SearchTool_ServerSide.Repository
                 {
                     cnt = 0;
                     await _context.SaveChangesAsync();
-
                 }
 
 
@@ -458,5 +457,17 @@ namespace SearchTool_ServerSide.Repository
             [Name("drug_class")]
             public string? DrugClass { get; set; }
         }
+    
+        internal async Task<ICollection<DrugInsurance>> GetAllLatest()
+        {
+            var items = await _context.DrugInsurances
+                .AsNoTracking()
+                .Include(x => x.Insurance)
+                .ToListAsync();
+            return items;
+        }
+
+        
     }
+
 }

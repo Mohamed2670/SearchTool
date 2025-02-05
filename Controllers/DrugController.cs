@@ -73,17 +73,27 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetDetails(ndc, insuranceId);
             return Ok(items);
         }
+
         [HttpGet("getDrugNDCsByNameInsuance")]
         public async Task<IActionResult> getDrugNDCsByNameInsuance([FromQuery]string drugName,[FromQuery] int insurnaceId)
         {
             var items = await _drugService.getDrugNDCsByNameInsuance(drugName, insurnaceId);
             return Ok(items);
         }
+
         [HttpGet("GetClassById")]
         public async Task<IActionResult> getClassbyId([FromQuery] int id)
         {
             var item = await _drugService.getClassbyId(id);
             return Ok(item);
         }
+
+         [HttpGet("GetAllLatest")]
+        public async Task <IActionResult> GetAllLatest()
+        {
+            var items = await _drugService.GetAllLatest();
+            return Ok(items);
+        }
+        
     }
 }

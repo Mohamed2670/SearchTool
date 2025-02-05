@@ -76,5 +76,11 @@ namespace SearchTool_ServerSide.Services
             var item = await _drugRepository.getClassbyId(id);
             return item;
         }
+
+        internal async Task<ICollection<DrugInsurance>> GetAllLatest()
+        {
+            var items = await _drugRepository.GetAllLatest();
+            return items;
+        }
     }
 }
