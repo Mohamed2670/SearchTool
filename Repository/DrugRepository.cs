@@ -394,7 +394,7 @@ namespace SearchTool_ServerSide.Repository
 
             var drugs = await _context.Drugs
                 .Where(d => d.ClassId == classId)
-                .GroupBy(d => d.Name)
+                .GroupBy(d => d.NDC)
                 .Select(g => g.First())
                 .ToListAsync();
 
