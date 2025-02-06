@@ -1,5 +1,6 @@
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
+using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Services
 {
@@ -77,10 +78,32 @@ namespace SearchTool_ServerSide.Services
             return item;
         }
 
-        internal async Task<ICollection<DrugInsurance>> GetAllLatest()
+        internal async Task<ICollection<Drug>> GetDrugsByClass(int classId)
+        {
+            var items = await _drugRepository.GetDrugsByClass(classId);
+            return items;
+        }
+
+        internal async Task<ICollection<Script>> GetAllLatest()
         {
             var items = await _drugRepository.GetAllLatest();
             return items;
+        }
+        internal async Task<ICollection<DrugInsurance>>GetAllDrugs(int classId)
+        {
+            var items = await _drugRepository.GetAllDrugs(classId);
+            return items;
+        }
+
+        internal async Task<Drug> GetDrugById(int id)
+        {
+            var item = await _drugRepository.GetDrugById(id);
+            return item;
+        }
+
+        internal async Task oneway()
+        {
+            await _drugRepository.oneway();
         }
     }
 }

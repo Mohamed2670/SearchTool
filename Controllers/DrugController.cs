@@ -87,13 +87,35 @@ namespace SearchTool_ServerSide.Controllers
             var item = await _drugService.getClassbyId(id);
             return Ok(item);
         }
-
-         [HttpGet("GetAllLatest")]
+        [HttpGet("GetDrugsByClass")]
+        public async Task<IActionResult> GetDrugsByClass([FromQuery] int classId)
+        {
+            var items = await _drugService.GetDrugsByClass(classId);
+            return Ok(items);
+        }
+        [HttpGet("GetAllLatest")]
         public async Task <IActionResult> GetAllLatest()
         {
             var items = await _drugService.GetAllLatest();
             return Ok(items);
         }
-        
+         [HttpGet("GetAllDrugs")]
+        public async Task <IActionResult> GetAllDrugs([FromQuery]int classId)
+        {
+            var items = await _drugService.GetAllDrugs(classId);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugById")]
+        public async Task<IActionResult> GetDrugById([FromQuery] int id)
+        {
+            var item = await _drugService.GetDrugById(id);
+            return Ok(item);
+        }
+        [HttpGet("oneway")]
+        public async Task<IActionResult> oneway()
+        {
+            await _drugService.oneway();
+            return Ok(true);
+        }
     }
 }

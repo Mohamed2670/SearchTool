@@ -229,6 +229,7 @@ namespace SearchTool_ServerSide.Repository
                         AcquisitionCost = record.AcquisitionCost,
                         RxCui = record.RxCui ?? 0,
                         Discount = record.Discount,
+                        insuranceName = record.Insurance,
                         InsurancePayment = record.InsurancePayment,
                         PatientPayment = record.PatientPayment,
                         DrugClass = record.DrugClass
@@ -367,8 +368,75 @@ namespace SearchTool_ServerSide.Repository
 
         internal async Task<DrugClass> getClassbyId(int id)
         {
-            var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id==id);
+            var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id == id);
             return item;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugsByClass(int classId)
+        {
+            var items = await _context.Drugs.Where(x => x.ClassId == classId).GroupBy(x => x.Name).Select(g => g.First()).ToListAsync();
+            return items;
+        }
+
+
+        internal async Task<ICollection<DrugInsurance>> GetAllDrugs(int classId)
+        {
+            var drugInsurances = await _context.DrugInsurances
+                .Where(di => di.ClassId == classId)
+                .ToListAsync();
+
+            var drugs = await _context.Drugs
+                .Where(d => d.ClassId == classId)
+                .GroupBy(d => d.Name)
+                .Select(g => g.First())
+                .ToListAsync();
+
+            var result = drugs.Select(d =>
+            {
+                var drugInsurance = drugInsurances.FirstOrDefault(di => di.DrugId == d.Id);
+                return drugInsurance ?? new DrugInsurance
+                {
+                    InsuranceId = 0, // or any default value
+                    DrugId = d.Id,
+                    NDCCode = d.NDC,
+                    DrugName = d.Name,
+                    ClassId = d.ClassId,
+                    Net = 0, // or any default value
+                    date = null, // or any default value
+                    Prescriber = null, // or any default value
+                    Quantity = 0, // or any default value
+                    AcquisitionCost = 0, // or any default value
+                    RxCui = 0, // or any default value
+                    Discount = 0, // or any default value
+                    InsurancePayment = 0, // or any default value
+                    PatientPayment = 0, // or any default value
+                    insuranceName = null, // or any default value
+                };
+            }).ToList();
+
+            return result;
+        }
+
+        internal async Task<Drug> GetDrugById(int id)
+        {
+            var item = await _context.Drugs.FirstOrDefaultAsync(x => x.Id == id);
+            return item;
+        }
+
+        internal async Task oneway()
+        {
+            var drugInsurances = await _context.DrugInsurances.ToListAsync();
+            var insurances = await _context.Insurances.ToDictionaryAsync(i => i.Id, i => i.Name);
+
+            foreach (var drugInsurance in drugInsurances)
+            {
+                if (insurances.TryGetValue(drugInsurance.InsuranceId, out var insuranceName))
+                {
+                    drugInsurance.insuranceName = insuranceName;
+                }
+            }
+
+            await _context.SaveChangesAsync();
         }
 
         public class DrugInsuranceRecord
@@ -458,16 +526,47 @@ namespace SearchTool_ServerSide.Repository
             public string? DrugClass { get; set; }
         }
     
-        internal async Task<ICollection<DrugInsurance>> GetAllLatest()
-        {
-            var items = await _context.DrugInsurances
-                .AsNoTracking()
-                .Include(x => x.Insurance)
-                .ToListAsync();
-            return items;
-        }
+        // internal async Task<ICollection<Script>> GetAllLatest()
+        // {
+        //     var items = await _context.Scripts
+        //         .AsNoTracking()
+        //         .Select(s => new Script
+        //         {
+        //             Date = s.Date,
+        //             ScriptCode = s.ScriptCode,
+        //             DrugName = s.DrugName,
+        //             Insurance = s.Insurance,
+        //             Prescriber = s.Prescriber,
+        //             NDCCode = s.NDCCode,
+        //             DrugClass = s.DrugClass,
+        //             NetProfit = s.NetProfit
+        //         })
 
-        
+
+        //         .ToListAsync();
+        //     return items;
+        // }
+
+
+    internal async Task<ICollection<Script>> GetAllLatest()
+    {
+        var items = await _context.Scripts
+            .AsNoTracking()
+            .ToListAsync();
+
+        // Filter out records with empty insurance names
+        var filteredData = items.Where(item => !string.IsNullOrWhiteSpace(item.Insurance) && !string.IsNullOrWhiteSpace(item.DrugClass)).ToList();
+
+        // Drop duplicates based on combination of NDCCode and insuranceName
+        var uniqueData = filteredData
+            .GroupBy(item => new { item.NDCCode, item.Insurance })
+            .Select(group => group.First())
+            .ToList();
+
+        return uniqueData;
+    }
+
+
     }
 
 }
