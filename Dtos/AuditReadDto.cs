@@ -1,10 +1,7 @@
-using SearchTool_ServerSide.Models;
-
-namespace ServerSide.Models
+namespace SearchTool_ServerSide.Dtos
 {
-    public class Script
+    public class AuditReadDto
     {
-        public int Id { get; set; }
         public DateTime Date { get; set; }
         public string ScriptCode { get; set; }
         public string RxNumber { get; set; }
@@ -21,6 +18,10 @@ namespace ServerSide.Models
         public string NDCCode { get; set; }
         public decimal NetProfit { get; set; }
         public string DrugClass { get; set; }
+        public string HighstDrugNDC { get; set; }
+        public string HighstDrugName { get; set; }
+        public int HighstDrugId { get; set; }
+        public decimal HighstNet { get; set; }
 
     }
 }

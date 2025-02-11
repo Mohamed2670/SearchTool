@@ -1,10 +1,12 @@
+using AutoMapper;
+using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
 using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class DrugService(DrugRepository _drugRepository)
+    public class DrugService(DrugRepository _drugRepository, IMapper _mapper)
     {
         public async Task Procces()
         {
@@ -89,9 +91,10 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAllLatest();
             return items;
         }
-        internal async Task<ICollection<Script>> GetAllLatestScripts()
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {
             var items = await _drugRepository.GetAllLatestScripts();
+
             return items;
         }
         internal async Task<ICollection<DrugInsurance>> GetAllDrugs(int classId)

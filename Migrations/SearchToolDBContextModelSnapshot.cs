@@ -37,6 +37,12 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DrugId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("InsuranceName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -44,6 +50,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasKey("InsuranceId", "ClassId");
 
                     b.HasIndex("ClassId");
+
+                    b.HasIndex("DrugId");
 
                     b.ToTable("ClassInsurances");
                 });
@@ -62,10 +70,7 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("AWP")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("ClassId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("DrugClassId")
+                    b.Property<int>("DrugClassId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Form")
@@ -120,15 +125,15 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("AcquisitionCost")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("ClassId")
-                        .HasColumnType("integer");
-
                     b.Property<decimal>("Discount")
                         .HasColumnType("numeric");
 
                     b.Property<string>("DrugClass")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("DrugClassId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("DrugName")
                         .IsRequired()
@@ -154,12 +159,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
 
-                    b.Property<decimal?>("RxCui")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("date")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("date")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("insuranceName")
                         .IsRequired()
@@ -225,9 +226,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("AcquisitionCost")
                         .HasColumnType("numeric");
 
-                    b.Property<string>("Date")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Discount")
                         .HasColumnType("numeric");
@@ -254,6 +254,10 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("NetProfit")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("PF")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<decimal>("PatientPayment")
                         .HasColumnType("numeric");
 
@@ -264,15 +268,15 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
 
-                    b.Property<decimal>("RxCui")
-                        .HasColumnType("numeric");
-
                     b.Property<string>("RxNumber")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ScriptCode")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("User")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -288,11 +292,19 @@ namespace SearchTool_ServerSide.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SearchTool_ServerSide.Models.Drug", "Drug")
+                        .WithMany()
+                        .HasForeignKey("DrugId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SearchTool_ServerSide.Models.Insurance", "Insurance")
                         .WithMany()
                         .HasForeignKey("InsuranceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Drug");
 
                     b.Navigation("DrugClass");
 
@@ -303,7 +315,9 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     b.HasOne("SearchTool_ServerSide.Models.DrugClass", "DrugClass")
                         .WithMany()
-                        .HasForeignKey("DrugClassId");
+                        .HasForeignKey("DrugClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("DrugClass");
                 });

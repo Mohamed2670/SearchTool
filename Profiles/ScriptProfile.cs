@@ -1,4 +1,5 @@
 using AutoMapper;
+using SearchTool_ServerSide.Dtos;
 using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Profiles
@@ -7,7 +8,8 @@ namespace SearchTool_ServerSide.Profiles
     {
         public ScriptProfile()
         {
-            
+            CreateMap<AuditReadDto, Script>();
+            CreateMap<Script, AuditReadDto>();
         }
     }
 }

@@ -9,6 +9,7 @@ using CsvHelper.Configuration.Attributes;
 using CsvHelper.TypeConversion;
 using Microsoft.EntityFrameworkCore;
 using SearchTool_ServerSide.Data;
+using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Models;
 using ServerSide.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -57,10 +58,16 @@ namespace SearchTool_ServerSide.Repository
             var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).ToListAsync();
             return ret;
         }
-        public async Task<decimal> GetBestNet(int insuranceId, int classId)
+        public async Task<ClassInsurance> GetBestNet(int insuranceId, int classId)
         {
             var item = await _context.ClassInsurances.FirstOrDefaultAsync(x => x.InsuranceId == insuranceId && x.ClassId == classId);
-            return item.BestNet;
+            return item;
+        }
+        public async Task<Insurance> GetInsurance(string name)
+        {
+            var item = await _context.Insurances.FirstOrDefaultAsync(x => x.Name == name);
+            return item;
+
         }
         public async Task<ICollection<string>> GetAllInsuranceByNDC(string ndc)
         {
@@ -120,9 +127,9 @@ namespace SearchTool_ServerSide.Repository
             foreach (var record in records)
             {
                 string temp = record.NDC.Replace("-", "");
-                temp = temp.TrimStart('0');
 
-
+                // Console.WriteLine("rxcui " + record.Rxcui);
+                // Console.ReadKey();
                 if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
 
                 {
@@ -137,10 +144,11 @@ namespace SearchTool_ServerSide.Repository
                     NDC = temp,
                     Form = record.Form,
                     Strength = record.Strength,
+                    DrugClassId = drugClass.Id,
                     ACQ = record.ACQ,
                     AWP = record.AWP,
-                    Rxcui = record.Rxcui,
-                    ClassId = drugClass.Id,
+                    Rxcui = record.Rxcui
+
                 };
                 var item = await context.Drugs.FirstOrDefaultAsync(x => x.NDC == drug.NDC);
                 if (item != null)
@@ -163,6 +171,7 @@ namespace SearchTool_ServerSide.Repository
             using var csv = new CsvReader(reader, config);
             var records = csv.GetRecords<ScriptRecord>().ToList();
             int cnt = 0;
+
             foreach (var record in records)
             {
                 // Check if insurance exists
@@ -176,43 +185,45 @@ namespace SearchTool_ServerSide.Repository
                     await _context.SaveChangesAsync();
                 }
 
+                // Normalize NDC Code
+                record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
+
                 // Check if drug exists
                 var drug = await _context.Drugs.FirstOrDefaultAsync(i => i.NDC == record.NDCCode);
-                var classItem = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Name == record.DrugClass);
-                if (classItem == null)
-                {
-                    classItem = new DrugClass { Name = record.DrugClass };
-                    _context.DrugClasses.Add(classItem);
-                    await _context.SaveChangesAsync();
-
-                }
-
+                var tempDrug = await _context.Drugs.FirstOrDefaultAsync(x => x.Name == record.DrugName);
                 if (drug == null)
                 {
-
-                    drug = new Drug
+                    if (tempDrug != null)
                     {
-                        Name = record.DrugName,
-                        NDC = record.NDCCode,
-                        Form = null,
-                        Strength = null,
-                        ClassId = classItem.Id,
-                        ACQ = record.AcquisitionCost,
-                        AWP = 0,
-                        Rxcui = record.RxCui
-                    };
-                    _context.Drugs.Add(drug);
-                    await _context.SaveChangesAsync();
+                        drug = new Drug
+                        {
+                            Name = record.DrugName,
+                            NDC = record.NDCCode,
+                            Form = tempDrug.Form,
+                            Strength = tempDrug.Strength,
+                            DrugClassId = tempDrug.DrugClassId,
+                            ACQ = record.AcquisitionCost,
+                            AWP = 0,
+                            Rxcui = tempDrug.Rxcui
+                        };
+                        _context.Drugs.Add(drug);
+                        await _context.SaveChangesAsync();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Skipping record: Drug with NDC {record.NDCCode} not found.");
+                        // Console.ReadLine();
+                        continue; // Skip this record
+
+                    }
                 }
+
+                var classItem = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id == drug.DrugClassId);
 
                 // Check if drug insurance entry exists
                 var exists = await _context.DrugInsurances
                     .FirstOrDefaultAsync(di => di.InsuranceId == insurance.Id && di.DrugId == drug.Id);
 
-                if (classItem == null)
-                {
-                    throw new InvalidOperationException($"Drug class with ID {drug.ClassId} not found.");
-                }
                 if (exists == null)
                 {
                     var drugInsurance = new DrugInsurance
@@ -221,43 +232,38 @@ namespace SearchTool_ServerSide.Repository
                         DrugId = drug.Id,
                         NDCCode = record.NDCCode,
                         DrugName = record.DrugName,
-                        Net = record.NetProfit,
-                        ClassId = classItem.Id,
-                        date = record.Date, // string type
+                        Net = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost,
+                        DrugClassId = classItem.Id,
+                        date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
                         Prescriber = record.Prescriber,
                         Quantity = record.Quantity,
                         AcquisitionCost = record.AcquisitionCost,
-                        RxCui = record.RxCui ?? 0,
                         Discount = record.Discount,
                         insuranceName = record.Insurance,
                         InsurancePayment = record.InsurancePayment,
                         PatientPayment = record.PatientPayment,
-                        DrugClass = record.DrugClass
+                        DrugClass = classItem.Name
                     };
-                    // Console.WriteLine(drugInsurance.date + " : " + record.Date);
-                    // Console.ReadKey();
                     _context.DrugInsurances.Add(drugInsurance);
-                    await _context.SaveChangesAsync();
-
                 }
                 else
                 {
-                    DateTime existsDate, recordDate;
-                    bool isExistsDateValid = DateTime.TryParseExact(exists.date, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out existsDate);
-                    bool isRecordDateValid = DateTime.TryParseExact(record.Date, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out recordDate);
-                    // Console.WriteLine(existsDate + " : " + recordDate);
-                    // Console.ReadKey();
-                    if (exists != null && isExistsDateValid && isRecordDateValid && existsDate < recordDate) // take month day year
+                    DateTime existsDate = exists.date, recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
+                    if (existsDate < recordDate)
                     {
-                        exists.Net = record.NetProfit;
+                        exists.Net = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
                         exists.AcquisitionCost = record.AcquisitionCost;
                         exists.Discount = record.Discount;
                         exists.InsurancePayment = record.InsurancePayment;
                         exists.PatientPayment = record.PatientPayment;
-                        exists.date = record.Date;
+                        exists.date = recordDate;
                         _context.DrugInsurances.Update(exists);
+
                     }
+
                 }
+                await _context.SaveChangesAsync();
+
                 var ClassInsuranceExists = await _context.ClassInsurances.FirstOrDefaultAsync(x => x.InsuranceId == insurance.Id && x.ClassId == classItem.Id);
                 if (ClassInsuranceExists == null)
                 {
@@ -266,60 +272,78 @@ namespace SearchTool_ServerSide.Repository
                         InsuranceId = insurance.Id,
                         InsuranceName = insurance.Name,
                         ClassId = classItem.Id,
+                        DrugId = drug.Id,
+                        Date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
                         ClassName = classItem.Name,
-                        BestNet = record.NetProfit
+                        BestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost
                     };
-                    // Console.WriteLine(classItem.Id + " : " + classItem.Name);
-                    // Console.WriteLine(drug.Id + " : " + drug.Name);
-                    // Console.WriteLine(classInsurance.InsuranceName + " : " + classInsurance.InsuranceId + " : " + classInsurance.BestNet);
-                    // Console.WriteLine(classInsurance.ClassId + " : " + classInsurance.ClassName );
-
-                    // Console.ReadKey();
                     _context.ClassInsurances.Add(classInsurance);
                     await _context.SaveChangesAsync();
                 }
                 else
                 {
-                    decimal HiestNet = Math.Max(record.NetProfit, ClassInsuranceExists.BestNet);
+                    DateTime existsDate = ClassInsuranceExists.Date, recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
+                    // if (existsDate < recordDate)
+                    // {
+                    //     ClassInsuranceExists.BestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
+                    //     ClassInsuranceExists.DrugId = drug.Id;
 
-                    ClassInsuranceExists.BestNet = Math.Max(record.NetProfit, ClassInsuranceExists.BestNet);
-
+                    // }
+                    // else if (existsDate == recordDate)
+                    // {
+                    if (record.PatientPayment + record.InsurancePayment - record.AcquisitionCost > ClassInsuranceExists.BestNet)
+                    {
+                        ClassInsuranceExists.DrugId = drug.Id;
+                    }
+                    ClassInsuranceExists.BestNet = Math.Max(record.PatientPayment + record.InsurancePayment - record.AcquisitionCost, ClassInsuranceExists.BestNet);
+                    // }
                     _context.ClassInsurances.Update(ClassInsuranceExists);
                     await _context.SaveChangesAsync();
                 }
                 var script = new Script
                 {
-                    Date = record.Date,
+                    Date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
                     ScriptCode = record.Script,
                     RxNumber = record.RxNumber,
+                    User = record.User,
                     DrugName = record.DrugName,
+                    PF = record.PF,
                     Insurance = record.Insurance,
                     Prescriber = record.Prescriber,
                     Quantity = record.Quantity,
                     AcquisitionCost = record.AcquisitionCost,
                     NDCCode = record.NDCCode,
-                    RxCui = record.RxCui ?? 0,
                     Discount = record.Discount,
                     InsurancePayment = record.InsurancePayment,
                     PatientPayment = record.PatientPayment,
-                    DrugClass = record.DrugClass,
-                    NetProfit = record.NetProfit
+                    NetProfit = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost,
+                    DrugClass = classItem.Name
                 };
                 _context.Scripts.Add(script);
                 cnt++;
+
                 if (cnt == 1000)
                 {
                     cnt = 0;
                     await _context.SaveChangesAsync();
-
                 }
-
-
             }
+
             await _context.SaveChangesAsync();
-
         }
+        public static string NormalizeNdcTo11Digits(string ndcCode)
+        {
+            // Remove hyphens
+            ndcCode = ndcCode.Replace("-", "");
 
+            if (ndcCode.Length < 11)
+            {
+                ndcCode = ndcCode.PadLeft(11, '0');
+            }
+
+            // Return original if it matches the 11-digit format already
+            return ndcCode;
+        }
         public async Task<DrugInsurance> GetBySelection(string name, string ndc, string insuranceName)
         {
             var insurance = await _context.Insurances.FirstOrDefaultAsync(x => x.Name == insuranceName);
@@ -335,7 +359,7 @@ namespace SearchTool_ServerSide.Repository
                 throw new InvalidOperationException($"Drug class with name {className} not found.");
             }
             var items = await _context.DrugInsurances
-                .Where(x => x.ClassId == classItem.Id && x.InsuranceId == insuranceId).
+                .Where(x => x.DrugClassId == classItem.Id && x.InsuranceId == insuranceId).
                 GroupBy(x => x.DrugName).Select(g => g.First())
                 .ToListAsync();
 
@@ -372,10 +396,15 @@ namespace SearchTool_ServerSide.Repository
             var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id == id);
             return item;
         }
+        internal async Task<DrugClass> getClassbyName(string name)
+        {
+            var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Name == name);
+            return item;
+        }
 
         internal async Task<ICollection<Drug>> GetDrugsByClass(int classId)
         {
-            var items = await _context.Drugs.Where(x => x.ClassId == classId).GroupBy(x => x.Name).Select(g => g.First()).ToListAsync();
+            var items = await _context.Drugs.Where(x => x.DrugClassId == classId).GroupBy(x => x.Name).Select(g => g.First()).ToListAsync();
             return items;
         }
 
@@ -389,11 +418,11 @@ namespace SearchTool_ServerSide.Repository
         internal async Task<ICollection<DrugInsurance>> GetAllDrugs(int classId)
         {
             var drugInsurances = await _context.DrugInsurances
-                .Where(di => di.ClassId == classId)
+                .Where(di => di.DrugClassId == classId)
                 .ToListAsync();
 
             var drugs = await _context.Drugs
-                .Where(d => d.ClassId == classId)
+                .Where(d => d.DrugClassId == classId)
                 .GroupBy(d => d.NDC)
                 .Select(g => g.First())
                 .ToListAsync();
@@ -407,13 +436,12 @@ namespace SearchTool_ServerSide.Repository
                     DrugId = d.Id,
                     NDCCode = d.NDC,
                     DrugName = d.Name,
-                    ClassId = d.ClassId,
+                    DrugClassId = d.DrugClassId,
                     Net = 0, // or any default value
-                    date = null, // or any default value
+                    date = DateTime.UtcNow, // or any default value
                     Prescriber = null, // or any default value
                     Quantity = 0, // or any default value
                     AcquisitionCost = 0, // or any default value
-                    RxCui = 0, // or any default value
                     Discount = 0, // or any default value
                     InsurancePayment = 0, // or any default value
                     PatientPayment = 0, // or any default value
@@ -468,11 +496,17 @@ namespace SearchTool_ServerSide.Repository
             [Name("R#")]
             public string RxNumber { get; set; }
 
+            [Name("User")]
+            public string? User { get; set; }
+
             [Name("Drug Name")]
             public string DrugName { get; set; }
 
             [Name("Ins")]
             public string Insurance { get; set; }
+
+            [Name("PF")]
+            public string PF { get; set; }
 
             [Name("Prescriber")]
             public string Prescriber { get; set; }
@@ -483,12 +517,6 @@ namespace SearchTool_ServerSide.Repository
             [Name("ACQ")]
             public decimal AcquisitionCost { get; set; }
 
-            [Name("NDC")]
-            public string NDCCode { get; set; }
-
-            [Name("RxCui")]
-            public decimal? RxCui { get; set; }
-
             [Name("Discount")]
             public decimal Discount { get; set; }
 
@@ -498,12 +526,10 @@ namespace SearchTool_ServerSide.Repository
             [Name("Pat Pay")]
             public decimal PatientPayment { get; set; }
 
-            [Name("class")]
-            public string DrugClass { get; set; }
-
-            [Name("Net_profit")]
-            public decimal NetProfit { get; set; }
+            [Name("NDC")]
+            public string NDCCode { get; set; }
         }
+
 
         public class DrugCs
         {
@@ -525,29 +551,51 @@ namespace SearchTool_ServerSide.Repository
             [Name("awp")]
             public decimal AWP { get; set; }
 
-            [Name("rxcui")]
+            [Name("rxCUI")]
             [Default(0)] // تعيين القيمة الافتراضية إلى 0 عند وجود بيانات فارغة
-            public int Rxcui { get; set; }
+            public decimal Rxcui { get; set; }
 
             [Name("drug_class")]
             public string? DrugClass { get; set; }
         }
-        internal async Task<ICollection<Script>> GetAllLatestScripts()
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {
-            var items = await _context.Scripts
-                .AsNoTracking()
-                .ToListAsync();
+            var auditData = await (
+                from script in _context.Scripts
+                join insurance in _context.Insurances on script.Insurance equals insurance.Name
+                join classItem in _context.DrugClasses on script.DrugClass equals classItem.Name
+                join classInsurance in _context.ClassInsurances
+                    on new { InsuranceId = insurance.Id, ClassId = classItem.Id }
+                    equals new { classInsurance.InsuranceId, classInsurance.ClassId }
+                join drug in _context.Drugs on classInsurance.DrugId equals drug.Id
+                select new AuditReadDto
+                {
+                    Date = script.Date,
+                    ScriptCode = script.ScriptCode,
+                    RxNumber = script.RxNumber,
+                    User = script.User,
+                    DrugName = script.DrugName,
+                    Insurance = script.Insurance,
+                    PF = script.PF,
+                    Prescriber = script.Prescriber,
+                    Quantity = script.Quantity,
+                    AcquisitionCost = script.AcquisitionCost,
+                    Discount = script.Discount,
+                    InsurancePayment = script.InsurancePayment,
+                    PatientPayment = script.PatientPayment,
+                    NDCCode = script.NDCCode,
+                    NetProfit = script.NetProfit,
+                    DrugClass = script.DrugClass,
+                    HighstDrugNDC = drug.NDC,
+                    HighstDrugName = drug.Name,
+                    HighstDrugId = drug.Id,
+                    HighstNet = classInsurance.BestNet
+                }).ToListAsync();
 
-            // Filter out records with empty insurance names
-            var filteredData = items.Where(item => !string.IsNullOrWhiteSpace(item.Insurance) && !string.IsNullOrWhiteSpace(item.DrugClass)).ToList();
-
-            // Drop duplicates based on combination of NDCCode and insuranceName
-            var uniqueData = filteredData
-                .GroupBy(item => new { item.NDCCode, item.Insurance })
-                .Select(group => group.First())
-                .ToList();
-
-            return uniqueData;
+            return auditData;
         }
+
+
+
     }
 }

@@ -9,7 +9,7 @@ namespace SearchTool_ServerSide.Models
         public required string NDC { get; set; }
         public string? Form { get; set; }
         public string? Strength { get; set; }
-        public int ClassId { get; set; }
+        public int DrugClassId { get; set; }
         public DrugClass? DrugClass { get; set; }
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
