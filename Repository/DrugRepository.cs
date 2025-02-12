@@ -181,7 +181,7 @@ namespace SearchTool_ServerSide.Repository
                 if (insurance == null)
                 {
                     insurance = new Insurance { Name = record.Insurance };
-                    _context.Insurances.Add(insurance);
+                    await _context.Insurances.AddAsync(insurance);
                     await _context.SaveChangesAsync();
                 }
 
@@ -206,7 +206,9 @@ namespace SearchTool_ServerSide.Repository
                             AWP = 0,
                             Rxcui = tempDrug.Rxcui
                         };
-                        _context.Drugs.Add(drug);
+                        await _context.Drugs.AddAsync(drug);
+                        tempDrug.ACQ = record.AcquisitionCost;
+                        _context.Drugs.Update(tempDrug);
                         await _context.SaveChangesAsync();
                     }
                     else
@@ -244,7 +246,7 @@ namespace SearchTool_ServerSide.Repository
                         PatientPayment = record.PatientPayment,
                         DrugClass = classItem.Name
                     };
-                    _context.DrugInsurances.Add(drugInsurance);
+                    await _context.DrugInsurances.AddAsync(drugInsurance);
                 }
                 else
                 {
@@ -264,7 +266,12 @@ namespace SearchTool_ServerSide.Repository
                 }
                 await _context.SaveChangesAsync();
 
-                var ClassInsuranceExists = await _context.ClassInsurances.FirstOrDefaultAsync(x => x.InsuranceId == insurance.Id && x.ClassId == classItem.Id);
+                var recordDat = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
+                var yearMonth = new DateTime(recordDat.Year, recordDat.Month, 1, 0, 0, 0, DateTimeKind.Utc); // Ensure UTC
+
+                var ClassInsuranceExists = await _context.ClassInsurances.FirstOrDefaultAsync(x =>
+                    x.InsuranceId == insurance.Id && x.ClassId == classItem.Id && x.Date.Year == recordDat.Year && x.Date.Month == recordDat.Month);
+
                 if (ClassInsuranceExists == null)
                 {
                     var classInsurance = new ClassInsurance
@@ -273,8 +280,10 @@ namespace SearchTool_ServerSide.Repository
                         InsuranceName = insurance.Name,
                         ClassId = classItem.Id,
                         DrugId = drug.Id,
-                        Date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
+                        Date = yearMonth,
                         ClassName = classItem.Name,
+                        ScriptDateTime = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
+                        ScriptCode = record.Script,
                         BestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost
                     };
                     _context.ClassInsurances.Add(classInsurance);
@@ -282,23 +291,16 @@ namespace SearchTool_ServerSide.Repository
                 }
                 else
                 {
-                    DateTime existsDate = ClassInsuranceExists.Date, recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
-                    // if (existsDate < recordDate)
-                    // {
-                    //     ClassInsuranceExists.BestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
-                    //     ClassInsuranceExists.DrugId = drug.Id;
-
-                    // }
-                    // else if (existsDate == recordDate)
-                    // {
-                    if (record.PatientPayment + record.InsurancePayment - record.AcquisitionCost > ClassInsuranceExists.BestNet)
+                    var bestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
+                    if (bestNet > ClassInsuranceExists.BestNet)
                     {
+                        ClassInsuranceExists.BestNet = bestNet;
                         ClassInsuranceExists.DrugId = drug.Id;
+                        ClassInsuranceExists.ScriptCode = record.Script;
+                        ClassInsuranceExists.ScriptDateTime = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
+                        _context.ClassInsurances.Update(ClassInsuranceExists);
+                        await _context.SaveChangesAsync();
                     }
-                    ClassInsuranceExists.BestNet = Math.Max(record.PatientPayment + record.InsurancePayment - record.AcquisitionCost, ClassInsuranceExists.BestNet);
-                    // }
-                    _context.ClassInsurances.Update(ClassInsuranceExists);
-                    await _context.SaveChangesAsync();
                 }
                 var script = new Script
                 {
@@ -565,9 +567,14 @@ namespace SearchTool_ServerSide.Repository
                 join insurance in _context.Insurances on script.Insurance equals insurance.Name
                 join classItem in _context.DrugClasses on script.DrugClass equals classItem.Name
                 join classInsurance in _context.ClassInsurances
-                    on new { InsuranceId = insurance.Id, ClassId = classItem.Id }
-                    equals new { classInsurance.InsuranceId, classInsurance.ClassId }
+                    on new { InsuranceId = insurance.Id, ClassId = classItem.Id, Year = script.Date.Year, Month = script.Date.Month }
+                    equals new { classInsurance.InsuranceId, classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month }
                 join drug in _context.Drugs on classInsurance.DrugId equals drug.Id
+                let bestNetEntry = _context.ClassInsurances
+                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                                 ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
                 select new AuditReadDto
                 {
                     Date = script.Date,
@@ -589,7 +596,9 @@ namespace SearchTool_ServerSide.Repository
                     HighstDrugNDC = drug.NDC,
                     HighstDrugName = drug.Name,
                     HighstDrugId = drug.Id,
-                    HighstNet = classInsurance.BestNet
+                    HighstNet =  bestNetEntry.BestNet,
+                    HighstScriptCode =  bestNetEntry.ScriptCode ,
+                    HighstScriptDate =  bestNetEntry.ScriptDateTime 
                 }).ToListAsync();
 
             return auditData;

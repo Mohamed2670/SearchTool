@@ -8,6 +8,8 @@ namespace SearchTool_ServerSide.Models
         public string InsuranceName { get; set;}
         public decimal BestNet { get; set; } = 0;
         public int DrugId { get; set; }
+        public string ScriptCode { get; set; } 
+        public DateTime ScriptDateTime { get; set; }
         public DateTime Date { get; set; }
         public Drug Drug { get; set; }
         public DrugClass DrugClass { get; set; }

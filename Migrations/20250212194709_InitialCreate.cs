@@ -113,15 +113,17 @@ namespace SearchTool_ServerSide.Migrations
                 {
                     InsuranceId = table.Column<int>(type: "integer", nullable: false),
                     ClassId = table.Column<int>(type: "integer", nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ClassName = table.Column<string>(type: "text", nullable: false),
                     InsuranceName = table.Column<string>(type: "text", nullable: false),
                     BestNet = table.Column<decimal>(type: "numeric", nullable: false),
                     DrugId = table.Column<int>(type: "integer", nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    ScriptCode = table.Column<string>(type: "text", nullable: false),
+                    ScriptDateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ClassInsurances", x => new { x.InsuranceId, x.ClassId });
+                    table.PrimaryKey("PK_ClassInsurances", x => new { x.InsuranceId, x.ClassId, x.Date });
                     table.ForeignKey(
                         name: "FK_ClassInsurances_DrugClasses_ClassId",
                         column: x => x.ClassId,

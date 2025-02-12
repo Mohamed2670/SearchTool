@@ -12,7 +12,7 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250211204935_InitialCreate")]
+    [Migration("20250212194709_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -33,15 +33,15 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("ClassId")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("BestNet")
                         .HasColumnType("numeric");
 
                     b.Property<string>("ClassName")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
@@ -50,7 +50,14 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.HasKey("InsuranceId", "ClassId");
+                    b.Property<string>("ScriptCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ScriptDateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("InsuranceId", "ClassId", "Date");
 
                     b.HasIndex("ClassId");
 

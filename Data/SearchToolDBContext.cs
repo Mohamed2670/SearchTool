@@ -26,7 +26,7 @@ namespace SearchTool_ServerSide.Data
             });
             modelBuilder.Entity<ClassInsurance>(entity =>
             {
-                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassId });
+                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassId, ci.Date });
 
                 // Define foreign key relationships
                 entity.HasOne(ci => ci.Insurance)

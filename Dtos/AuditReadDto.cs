@@ -22,6 +22,8 @@ namespace SearchTool_ServerSide.Dtos
         public string HighstDrugName { get; set; }
         public int HighstDrugId { get; set; }
         public decimal HighstNet { get; set; }
+        public string HighstScriptCode { get; set; }
+        public DateTime HighstScriptDate { get; set; }
 
     }
 }
