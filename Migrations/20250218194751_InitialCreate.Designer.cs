@@ -12,7 +12,7 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250212194709_InitialCreate")]
+    [Migration("20250218194751_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -200,32 +200,7 @@ namespace SearchTool_ServerSide.Migrations
                     b.ToTable("Insurances");
                 });
 
-            modelBuilder.Entity("SearchTool_ServerSide.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("ServerSide.Models.Script", b =>
+            modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -235,9 +210,6 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.Property<decimal>("AcquisitionCost")
                         .HasColumnType("numeric");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Discount")
                         .HasColumnType("numeric");
@@ -277,6 +249,52 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("numeric");
+
+                    b.Property<int>("ScriptId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScriptId");
+
+                    b.ToTable("ScriptItems");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("ServerSide.Models.Script", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("RxNumber")
                         .IsRequired()
@@ -349,6 +367,22 @@ namespace SearchTool_ServerSide.Migrations
                     b.Navigation("Drug");
 
                     b.Navigation("Insurance");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
+                {
+                    b.HasOne("ServerSide.Models.Script", "Script")
+                        .WithMany("ScriptItems")
+                        .HasForeignKey("ScriptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Script");
+                });
+
+            modelBuilder.Entity("ServerSide.Models.Script", b =>
+                {
+                    b.Navigation("ScriptItems");
                 });
 #pragma warning restore 612, 618
         }

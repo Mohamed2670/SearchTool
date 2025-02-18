@@ -266,12 +266,16 @@ namespace SearchTool_ServerSide.Repository
                 }
                 await _context.SaveChangesAsync();
 
-                var recordDat = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
-                var yearMonth = new DateTime(recordDat.Year, recordDat.Month, 1, 0, 0, 0, DateTimeKind.Utc); // Ensure UTC
+                var recordDat = DateTime.SpecifyKind(DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture), DateTimeKind.Utc);
+                var yearMonth = new DateTime(recordDat.Year, recordDat.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
                 var ClassInsuranceExists = await _context.ClassInsurances.FirstOrDefaultAsync(x =>
                     x.InsuranceId == insurance.Id && x.ClassId == classItem.Id && x.Date.Year == recordDat.Year && x.Date.Month == recordDat.Month);
-
+                // if (yearMonth.Month == 11)
+                // {
+                //     Console.WriteLine("how!!!" + record.Date + " : " + DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime());
+                //     Console.ReadKey();
+                // }
                 if (ClassInsuranceExists == null)
                 {
                     var classInsurance = new ClassInsurance
@@ -282,7 +286,7 @@ namespace SearchTool_ServerSide.Repository
                         DrugId = drug.Id,
                         Date = yearMonth,
                         ClassName = classItem.Name,
-                        ScriptDateTime = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
+                        ScriptDateTime = yearMonth,
                         ScriptCode = record.Script,
                         BestNet = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost
                     };
@@ -302,37 +306,69 @@ namespace SearchTool_ServerSide.Repository
                         await _context.SaveChangesAsync();
                     }
                 }
-                var script = new Script
-                {
-                    Date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
-                    ScriptCode = record.Script,
-                    RxNumber = record.RxNumber,
-                    User = record.User,
-                    DrugName = record.DrugName,
-                    PF = record.PF,
-                    Insurance = record.Insurance,
-                    Prescriber = record.Prescriber,
-                    Quantity = record.Quantity,
-                    AcquisitionCost = record.AcquisitionCost,
-                    NDCCode = record.NDCCode,
-                    Discount = record.Discount,
-                    InsurancePayment = record.InsurancePayment,
-                    PatientPayment = record.PatientPayment,
-                    NetProfit = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost,
-                    DrugClass = classItem.Name
-                };
-                _context.Scripts.Add(script);
-                cnt++;
+                // Find or create the script entry
+                var script = await _context.Scripts.FirstOrDefaultAsync(s => s.ScriptCode == record.Script);
 
-                if (cnt == 1000)
+                if (script == null)
                 {
-                    cnt = 0;
-                    await _context.SaveChangesAsync();
+                    script = new Script
+                    {
+                        Date = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime(),
+                        ScriptCode = record.Script,
+                        RxNumber = record.RxNumber,
+                        User = record.User
+                    };
+
+                    await _context.Scripts.AddAsync(script);
+                    await _context.SaveChangesAsync(); // Ensure script ID is set
                 }
+
+                // Check if the script item already exists
+                var scriptItem = await _context.ScriptItems
+                    .FirstOrDefaultAsync(si => si.ScriptId == script.Id && si.NDCCode == record.NDCCode);
+
+                if (scriptItem == null)
+                {
+                    scriptItem = new ScriptItem
+                    {
+                        ScriptId = script.Id,
+                        DrugName = record.DrugName,
+                        Insurance = record.Insurance,
+                        PF = record.PF,
+                        Prescriber = record.Prescriber,
+                        Quantity = record.Quantity,
+                        AcquisitionCost = record.AcquisitionCost,
+                        Discount = record.Discount,
+                        InsurancePayment = record.InsurancePayment,
+                        PatientPayment = record.PatientPayment,
+                        NetProfit = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost,
+                        NDCCode = record.NDCCode,
+                        DrugClass = classItem.Name
+                    };
+
+                    await _context.ScriptItems.AddAsync(scriptItem);
+                }
+                else
+                {
+                    // Update existing script item if it has a newer date
+                    DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture).ToUniversalTime();
+                    if (script.Date < recordDate)
+                    {
+                        scriptItem.NetProfit = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
+                        scriptItem.AcquisitionCost = record.AcquisitionCost;
+                        scriptItem.Discount = record.Discount;
+                        scriptItem.InsurancePayment = record.InsurancePayment;
+                        scriptItem.PatientPayment = record.PatientPayment;
+                        _context.ScriptItems.Update(scriptItem);
+                    }
+                }
+
+
             }
 
             await _context.SaveChangesAsync();
         }
+
         public static string NormalizeNdcTo11Digits(string ndcCode)
         {
             // Remove hyphens
@@ -564,47 +600,63 @@ namespace SearchTool_ServerSide.Repository
         {
             var auditData = await (
                 from script in _context.Scripts
-                join insurance in _context.Insurances on script.Insurance equals insurance.Name
-                join classItem in _context.DrugClasses on script.DrugClass equals classItem.Name
+                join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
+                join insurance in _context.Insurances on scriptItem.Insurance equals insurance.Name
+                join classItem in _context.DrugClasses on scriptItem.DrugClass equals classItem.Name
                 join classInsurance in _context.ClassInsurances
                     on new { InsuranceId = insurance.Id, ClassId = classItem.Id, Year = script.Date.Year, Month = script.Date.Month }
                     equals new { classInsurance.InsuranceId, classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month }
                 join drug in _context.Drugs on classInsurance.DrugId equals drug.Id
-                let bestNetEntry = _context.ClassInsurances
+
+                let prevMonth = script.Date.AddMonths(-1)
+                let bestNetEntryPrevMonth = _context.ClassInsurances
+                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                                 ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
+
+                let bestNetEntryCurrentMonth = _context.ClassInsurances
                     .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
                                  ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
+
+                let bestNetEntry = bestNetEntryPrevMonth ?? bestNetEntryCurrentMonth  // Use previous month if available, otherwise fallback to current month
+
                 select new AuditReadDto
                 {
                     Date = script.Date,
                     ScriptCode = script.ScriptCode,
                     RxNumber = script.RxNumber,
                     User = script.User,
-                    DrugName = script.DrugName,
-                    Insurance = script.Insurance,
-                    PF = script.PF,
-                    Prescriber = script.Prescriber,
-                    Quantity = script.Quantity,
-                    AcquisitionCost = script.AcquisitionCost,
-                    Discount = script.Discount,
-                    InsurancePayment = script.InsurancePayment,
-                    PatientPayment = script.PatientPayment,
-                    NDCCode = script.NDCCode,
-                    NetProfit = script.NetProfit,
-                    DrugClass = script.DrugClass,
+                    DrugName = scriptItem.DrugName, // From ScriptItem now
+                    Insurance = scriptItem.Insurance,
+                    PF = scriptItem.PF,
+                    Prescriber = scriptItem.Prescriber,
+                    Quantity = scriptItem.Quantity,
+                    AcquisitionCost = scriptItem.AcquisitionCost,
+                    Discount = scriptItem.Discount,
+                    InsurancePayment = scriptItem.InsurancePayment,
+                    PatientPayment = scriptItem.PatientPayment,
+                    NDCCode = scriptItem.NDCCode,
+                    NetProfit = scriptItem.NetProfit,
+                    DrugClass = scriptItem.DrugClass, // From ScriptItem now
                     HighstDrugNDC = drug.NDC,
                     HighstDrugName = drug.Name,
                     HighstDrugId = drug.Id,
-                    HighstNet =  bestNetEntry.BestNet,
-                    HighstScriptCode =  bestNetEntry.ScriptCode ,
-                    HighstScriptDate =  bestNetEntry.ScriptDateTime 
+                    HighstNet = bestNetEntry.BestNet,
+                    HighstScriptCode = bestNetEntry.ScriptCode,
+                    HighstScriptDate = bestNetEntry.ScriptDateTime
                 }).ToListAsync();
 
             return auditData;
         }
 
 
-
+        internal async Task<ICollection<DrugInsurance>> GetInsuranceByNdc(string ndc)
+        {
+            var items = await _context.DrugInsurances.Where(x => x.NDCCode == ndc).ToListAsync();
+            return items;
+        }
     }
 }

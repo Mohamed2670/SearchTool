@@ -47,19 +47,7 @@ namespace SearchTool_ServerSide.Migrations
                     Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ScriptCode = table.Column<string>(type: "text", nullable: false),
                     RxNumber = table.Column<string>(type: "text", nullable: false),
-                    User = table.Column<string>(type: "text", nullable: true),
-                    DrugName = table.Column<string>(type: "text", nullable: false),
-                    Insurance = table.Column<string>(type: "text", nullable: false),
-                    PF = table.Column<string>(type: "text", nullable: false),
-                    Prescriber = table.Column<string>(type: "text", nullable: false),
-                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
-                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
-                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
-                    InsurancePayment = table.Column<decimal>(type: "numeric", nullable: false),
-                    PatientPayment = table.Column<decimal>(type: "numeric", nullable: false),
-                    NDCCode = table.Column<string>(type: "text", nullable: false),
-                    NetProfit = table.Column<decimal>(type: "numeric", nullable: false),
-                    DrugClass = table.Column<string>(type: "text", nullable: false)
+                    User = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -103,6 +91,37 @@ namespace SearchTool_ServerSide.Migrations
                         name: "FK_Drugs_DrugClasses_DrugClassId",
                         column: x => x.DrugClassId,
                         principalTable: "DrugClasses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ScriptItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ScriptId = table.Column<int>(type: "integer", nullable: false),
+                    DrugName = table.Column<string>(type: "text", nullable: false),
+                    Insurance = table.Column<string>(type: "text", nullable: false),
+                    PF = table.Column<string>(type: "text", nullable: false),
+                    Prescriber = table.Column<string>(type: "text", nullable: false),
+                    Quantity = table.Column<decimal>(type: "numeric", nullable: false),
+                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    Discount = table.Column<decimal>(type: "numeric", nullable: false),
+                    InsurancePayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    PatientPayment = table.Column<decimal>(type: "numeric", nullable: false),
+                    NDCCode = table.Column<string>(type: "text", nullable: false),
+                    NetProfit = table.Column<decimal>(type: "numeric", nullable: false),
+                    DrugClass = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ScriptItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ScriptItems_Scripts_ScriptId",
+                        column: x => x.ScriptId,
+                        principalTable: "Scripts",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -200,6 +219,11 @@ namespace SearchTool_ServerSide.Migrations
                 name: "IX_Drugs_DrugClassId",
                 table: "Drugs",
                 column: "DrugClassId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ScriptItems_ScriptId",
+                table: "ScriptItems",
+                column: "ScriptId");
         }
 
         /// <inheritdoc />
@@ -212,7 +236,7 @@ namespace SearchTool_ServerSide.Migrations
                 name: "DrugInsurances");
 
             migrationBuilder.DropTable(
-                name: "Scripts");
+                name: "ScriptItems");
 
             migrationBuilder.DropTable(
                 name: "Users");
@@ -222,6 +246,9 @@ namespace SearchTool_ServerSide.Migrations
 
             migrationBuilder.DropTable(
                 name: "Insurances");
+
+            migrationBuilder.DropTable(
+                name: "Scripts");
 
             migrationBuilder.DropTable(
                 name: "DrugClasses");

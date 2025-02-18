@@ -13,7 +13,7 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.Procces();
             return Ok();
         }
-        
+
         [HttpGet("/temp2")]
         public async Task<IActionResult> temp2()
         {
@@ -34,9 +34,9 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("SearchByIdNdc")]
-        public async Task<IActionResult> SearchByIdNdc([FromQuery] int id ,[FromQuery] string ndc)
+        public async Task<IActionResult> SearchByIdNdc([FromQuery] int id, [FromQuery] string ndc)
         {
-            var item = await _drugService.SearchByIdNdc(id,ndc);
+            var item = await _drugService.SearchByIdNdc(id, ndc);
             return Ok(item);
         }
 
@@ -56,25 +56,25 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetByslections")]
-        public async Task<IActionResult> GetBySelection([FromQuery]string name,[FromQuery] string ndc,[FromQuery]string insuranceName)
+        public async Task<IActionResult> GetBySelection([FromQuery] string name, [FromQuery] string ndc, [FromQuery] string insuranceName)
         {
             var item = await _drugService.GetBySelection(name, ndc, insuranceName);
             return Ok(item);
         }
         [HttpGet("GetAltrantives")]
-        public async Task<IActionResult> GetAltrantives([FromQuery]string className,[FromQuery] int insuranceId)
+        public async Task<IActionResult> GetAltrantives([FromQuery] string className, [FromQuery] int insuranceId)
         {
             var items = await _drugService.GetAltrantives(className, insuranceId);
             return Ok(items);
         }
         [HttpGet("GetDetails")]
-        public async Task<IActionResult> GetDetails([FromQuery]string ndc,[FromQuery] int insuranceId)
+        public async Task<IActionResult> GetDetails([FromQuery] string ndc, [FromQuery] int insuranceId)
         {
             var items = await _drugService.GetDetails(ndc, insuranceId);
             return Ok(items);
         }
         [HttpGet("getDrugNDCsByNameInsuance")]
-        public async Task<IActionResult> getDrugNDCsByNameInsuance([FromQuery]string drugName,[FromQuery] int insurnaceId)
+        public async Task<IActionResult> getDrugNDCsByNameInsuance([FromQuery] string drugName, [FromQuery] int insurnaceId)
         {
             var items = await _drugService.getDrugNDCsByNameInsuance(drugName, insurnaceId);
             return Ok(items);
@@ -92,7 +92,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetAllLatest")]
-        public async Task <IActionResult> GetAllLatest()
+        public async Task<IActionResult> GetAllLatest()
         {
             var items = await _drugService.GetAllLatest();
             return Ok(items);
@@ -103,8 +103,8 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllLatestScripts();
             return Ok(items);
         }
-         [HttpGet("GetAllDrugs")]
-        public async Task <IActionResult> GetAllDrugs([FromQuery]int classId)
+        [HttpGet("GetAllDrugs")]
+        public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
@@ -120,6 +120,12 @@ namespace SearchTool_ServerSide.Controllers
         {
             await _drugService.oneway();
             return Ok(true);
+        }
+        [HttpGet("GetInsuranceByNdc")]
+        public async Task<IActionResult> GetInsuranceByNdc([FromQuery] string ndc)
+        {
+            var items = await _drugService.GetInsuranceByNdc(ndc);
+            return Ok(items);
         }
     }
 }

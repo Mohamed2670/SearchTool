@@ -17,6 +17,7 @@ namespace SearchTool_ServerSide.Data
         public DbSet<Script> Scripts { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<ClassInsurance> ClassInsurances { get; set; }
+        public DbSet<ScriptItem> ScriptItems  { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

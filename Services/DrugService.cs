@@ -113,5 +113,11 @@ namespace SearchTool_ServerSide.Services
         {
             await _drugRepository.oneway();
         }
+
+        internal async Task<ICollection<DrugInsurance>> GetInsuranceByNdc(string ndc)
+        {
+            var items = await _drugRepository.GetInsuranceByNdc(ndc);
+            return items;
+        }
     }
 }
