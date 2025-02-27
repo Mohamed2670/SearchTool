@@ -1,5 +1,6 @@
 using AutoMapper;
 using SearchTool_ServerSide.Dtos;
+using SearchTool_ServerSide.Dtos.DrugDtos;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
 using ServerSide.Models;
@@ -22,11 +23,11 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        public async Task<ICollection<Insurance>> GetDrugInsurances(string name)
-        {
-            var items = await _drugRepository.GetDrugInsurances(name);
-            return items;
-        }
+        // public async Task<ICollection<Insurance>> GetDrugInsurances(string name)
+        // {
+        //     var items = await _drugRepository.GetDrugInsurances(name);
+        //     return items;
+        // }
 
         public async Task<ICollection<string>> GetDrugNDCs(string name)
         {
@@ -68,11 +69,11 @@ namespace SearchTool_ServerSide.Services
             return item;
         }
 
-        internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
-        {
-            var items = await _drugRepository.getDrugNDCsByNameInsuance(drugName, insurnaceId);
-            return items;
-        }
+        // internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
+        // {
+        //     var items = await _drugRepository.getDrugNDCsByNameInsuance(drugName, insurnaceId);
+        //     return items;
+        // }
 
         internal async Task<DrugClass> getClassbyId(int id)
         {
@@ -97,7 +98,7 @@ namespace SearchTool_ServerSide.Services
 
             return items;
         }
-        internal async Task<ICollection<DrugInsurance>> GetAllDrugs(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
         {
             var items = await _drugRepository.GetAllDrugs(classId);
             return items;
@@ -109,14 +110,47 @@ namespace SearchTool_ServerSide.Services
             return item;
         }
 
-        internal async Task oneway()
-        {
-            await _drugRepository.oneway();
-        }
+        // internal async Task oneway()
+        // {
+        //     await _drugRepository.oneway();
+        // }
 
         internal async Task<ICollection<DrugInsurance>> GetInsuranceByNdc(string ndc)
         {
             var items = await _drugRepository.GetInsuranceByNdc(ndc);
+            return items;
+        }
+
+        internal async Task<ICollection<ScriptItemDto>> GetScriptByScriptCode(string scriptCode)
+        {
+            var items = await _drugRepository.GetScriptByScriptCode(scriptCode);
+            return items;
+        }
+        internal async Task ImportInsurancesFromCsvAsync()
+        {
+            await _drugRepository.ImportInsurancesFromCsvAsync();
+        }
+
+        internal async Task<Insurance> GetInsuranceDetails(string shortName)
+        {
+            var item = await _drugRepository.GetInsuranceDetails(shortName);
+            return item;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugsByClassBranch(int classId, int branchId)
+        {
+            var items = await _drugRepository.GetDrugsByClassBranch(classId, branchId);
+            return items;
+        }
+        internal async Task<Script> GetScriptAsync(string scriptCode)
+        {
+            var item = await _drugRepository.GetScriptAsync(scriptCode);
+            return item;
+        }
+
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAlternativesByClassIdBranchId(int classId, int branchId)
+        {
+            var items = await _drugRepository.GetAlternativesByClassIdBranchId(classId, branchId);
             return items;
         }
     }

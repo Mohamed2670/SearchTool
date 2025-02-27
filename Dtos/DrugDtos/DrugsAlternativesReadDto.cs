@@ -1,13 +1,14 @@
-namespace SearchTool_ServerSide.Models
+namespace SearchTool_ServerSide.Dtos.DrugDtos
 {
-    public class DrugInsurance
+    public class DrugsAlternativesReadDto
     {
         public required int InsuranceId { get; set; }
         public required int DrugId { get; set; }
         public required int BranchId { get; set; }
-
         public required string NDCCode { get; set; }
+        public required string DrugName { get; set; }
         public int DrugClassId { get; set; }
+        public string insuranceName { get; set; }
         public decimal Net { get; set; }
         public DateTime date { get; set; }
         public string Prescriber { get; set; }
@@ -16,9 +17,8 @@ namespace SearchTool_ServerSide.Models
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }
         public decimal PatientPayment { get; set; }
-        public Insurance? Insurance { get; set; }
-        public Drug? Drug { get; set; }
-        public Branch? Branch { get; set; }
+        public string DrugClass { get; set; }
+        public string branchName { get; set; }
 
     }
 }

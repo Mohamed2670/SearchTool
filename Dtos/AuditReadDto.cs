@@ -7,6 +7,7 @@ namespace SearchTool_ServerSide.Dtos
         public string RxNumber { get; set; }
         public string? User { get; set; }
         public string DrugName { get; set; }
+        public int DrugId { get; set; }
         public string Insurance { get; set; }
         public string PF { get; set; }
         public string Prescriber { get; set; }
@@ -23,6 +24,7 @@ namespace SearchTool_ServerSide.Dtos
         public int HighstDrugId { get; set; }
         public decimal HighstNet { get; set; }
         public string HighstScriptCode { get; set; }
+        public string BranchCode { get; set; }
         public DateTime HighstScriptDate { get; set; }
 
     }

@@ -1,17 +1,14 @@
-using Microsoft.AspNetCore.Identity;
-using ServerSide.Model;
+using SearchTool_ServerSide.Models;
 
-namespace SearchTool_ServerSide.Models
+namespace SearchTool_ServerSide.Dtos.UserDtos
 {
-    public class User : IEntity
+    public class UserAddDto
     {
-        public int Id { get; set; }
         public required string Email { get; set; }
         public required string ShortName { get; set; }
         public required string Name { get; set; }
         public required string Password { get; set; }
         public int BranchId { get; set; }
-        public Branch Branch { get; set; }
         public Role Role { get; set; } = Role.Pharmacist;
     }
 }
