@@ -153,5 +153,11 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAlternativesByClassIdBranchId(classId, branchId);
             return items;
         }
+
+        internal async Task<ICollection<Drug>> GetDrugsByInsurance(int insuranceId, string drug)
+        {
+            var items = await _drugRepository.GetDrugsByInsurance(insuranceId, drug);
+            return items;
+        }
     }
 }

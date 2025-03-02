@@ -1,5 +1,6 @@
 
 using System.Security.Claims;
+using SearchTool_ServerSide.Dtos.TokenDto;
 using ServerSide.Model;
 
 namespace SearchTool_ServerSide.Authentication
@@ -45,6 +46,21 @@ namespace SearchTool_ServerSide.Authentication
             }
             return personId == userId.ToString();
 
+        }
+        public TokenReadDto tokenData()
+        {
+               var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+            {
+                return null;
+            }
+            Console.WriteLine("sdsa : " + user.IsInRole("Admin"));
+
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
+            var branchId = user.FindFirst("BranchId")?.Value;
+            return new TokenReadDto { UserId = userId, UserRole = role, Email = email, BranchId = branchId };
         }
     }
 }

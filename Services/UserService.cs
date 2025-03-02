@@ -10,7 +10,7 @@ using ServerSide;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions)
+    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions,BranchRepository _branchRepository)
     {
         internal async Task<UserReadDto> Register(UserAddDto userAddDto)
         {
@@ -27,7 +27,7 @@ namespace SearchTool_ServerSide.Services
             return userReadDto;
         }
 
-        internal async Task<(string accessToken, string refreshToken, string userId)?> Login(UserLoginDto userLoginDto)
+        internal async Task<(string accessToken, string refreshToken, string userId, string branchId)?> Login(UserLoginDto userLoginDto)
         {
             var user = await _userRepository.GetUserByEmail(userLoginDto.Email);
             if (user == null)
@@ -42,7 +42,8 @@ namespace SearchTool_ServerSide.Services
             var accessToken = TokenGenerate(user, expiresInMinutes: 3);
             var refreshToken = TokenGenerate(user, expiresInDays: 1);
             var userId = user.Id.ToString();
-            return (accessToken, refreshToken, userId);
+            var branchId = user.BranchId.ToString();
+            return (accessToken, refreshToken, userId, branchId);
         }
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)
         {
@@ -77,6 +78,9 @@ namespace SearchTool_ServerSide.Services
         {
             var user = await _userRepository.GetById(id);
             var userReadDto = _mapper.Map<UserReadDto>(user);
+            userReadDto.RoleName = user.Role.ToString();
+            var branch = await _branchRepository.GetById(user.BranchId);
+            userReadDto.BranchName = branch.Name;
             return userReadDto;
         }
         public async Task<(string accessToken, string refreshToken, string userId)?> Refresh(string email)
@@ -90,6 +94,31 @@ namespace SearchTool_ServerSide.Services
             var refreshToken = TokenGenerate(user, expiresInDays: 2);
             var userId = user.Id.ToString();
             return (accessToken, refreshToken, userId);
+        }
+
+        internal async Task<UserReadDto> UserUpdate(int userId, UserUpdateDto userUpdateDto)
+        {
+            var user = await _userRepository.GetById(userId);
+            if (user == null)
+                return null;
+            _mapper.Map(userUpdateDto, user);
+            await _userRepository.Update(user);
+            var userReadDto = _mapper.Map<UserReadDto>(user);
+            return userReadDto;
+        }
+
+        internal async Task<UserReadDto> DeleteUserById(int id)
+        {
+            var user = await _userRepository.Delete(id);
+            var userReadDto = _mapper.Map<UserReadDto>(user);
+            return userReadDto;
+        }
+
+        internal async Task<ICollection<UserReadDto>> GetAllUser()
+        {
+            var users = await _userRepository.GetAll();
+            var userReadDtos = _mapper.Map<ICollection<UserReadDto>>(users);
+            return userReadDtos;
         }
     }
 }

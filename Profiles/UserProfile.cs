@@ -13,6 +13,7 @@ namespace SearchTool_ServerSide.Profiles
             CreateMap<User, UserReadDto>().ReverseMap();
             CreateMap<User, UserAddDto>().ReverseMap();
             CreateMap<User, UserLoginDto>().ReverseMap();
+            CreateMap<User, UserUpdateDto>().ReverseMap().ForAllMembers(opt => opt.Condition((src, dest, srcMember) => srcMember != null));
 
         }
     }

@@ -1062,6 +1062,20 @@ namespace SearchTool_ServerSide.Repository
 
             return result;
         }
+
+        internal async Task<ICollection<Drug>> GetDrugsByInsurance(int insuranceId, string drug)
+        {
+            var drugs = await (from d in _context.Drugs
+                               join di in _context.DrugInsurances on d.Id equals di.DrugId
+                               where di.InsuranceId == insuranceId &&
+                                     d.Name.ToLower().Contains(drug.ToLower())
+                               select d)
+                              .Distinct()
+                              .ToListAsync();
+
+            return drugs;
+        }
+
     }
     public sealed class InsuranceMap : ClassMap<Insurance>
     {

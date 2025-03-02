@@ -105,7 +105,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllLatestScripts"), Authorize(Policy = "Admin")]
+        [HttpGet("GetAllLatestScripts")]
         public async Task<IActionResult> GetAllLatestScripts()
         {
             var items = await _drugService.GetAllLatestScripts();
@@ -166,6 +166,12 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId, [FromQuery] int branchId)
         {
             var items = await _drugService.GetAlternativesByClassIdBranchId(classId, branchId);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByInsurance")]
+        public async Task<IActionResult> GetDrugsByInsurance([FromQuery] int insuranceId, [FromQuery] string drug)
+        {
+            var items = await _drugService.GetDrugsByInsurance(insuranceId, drug);
             return Ok(items);
         }
     }
