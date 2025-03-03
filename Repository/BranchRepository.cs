@@ -5,7 +5,7 @@ using SearchTool_ServerSide.Models;
 
 namespace SearchTool_ServerSide.Repository
 {
-    public class BranchRepository : GenericRepository<User>
+    public class BranchRepository : GenericRepository<Branch>
     {
         private readonly SearchToolDBContext _context;
         private readonly IMapper _mapper;

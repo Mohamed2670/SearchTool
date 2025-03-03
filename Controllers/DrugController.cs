@@ -5,7 +5,7 @@ using SearchTool_ServerSide.Services;
 
 namespace SearchTool_ServerSide.Controllers
 {
-    [ApiController, Route("drug")]
+    [ApiController, Route("drug"),Authorize(Policy = "Pharmacist")]
     public class DrugController(DrugService _drugService, UserAccessToken userAccessToken) : ControllerBase
     {
         [HttpGet, AllowAnonymous]
@@ -163,8 +163,18 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(item);
         }
         [HttpGet("GetAlternativesByClassIdBranchId")]
-        public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId, [FromQuery] int branchId)
+        public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId)
         {
+              var userData = userAccessToken.tokenData();
+            if (userData == null || string.IsNullOrEmpty(userData.UserId))
+            {
+                return Unauthorized("Invalid or missing token data");
+            }
+
+            if (!int.TryParse(userData.BranchId, out int branchId))
+            {
+                return BadRequest("Invalid user ID format");
+            }
             var items = await _drugService.GetAlternativesByClassIdBranchId(classId, branchId);
             return Ok(items);
         }
@@ -172,6 +182,18 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetDrugsByInsurance([FromQuery] int insuranceId, [FromQuery] string drug)
         {
             var items = await _drugService.GetDrugsByInsurance(insuranceId, drug);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByInsuranceName")]
+        public async Task<IActionResult> GetDrugsByInsurance([FromQuery] string insurance)
+        {
+            var items = await _drugService.GetDrugsByInsurance(insurance);
+            return Ok(items);
+        }
+        [HttpGet("GetInsurances")]
+        public async Task<IActionResult> GetInsurances([FromQuery] string insurance)
+        {
+            var items = await _drugService.GetInsurances(insurance);
             return Ok(items);
         }
     }

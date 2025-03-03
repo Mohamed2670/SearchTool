@@ -29,7 +29,7 @@ namespace SearchTool_ServerSide.Controllers
             var tokens = await _userService.Login(userLoginDto);
             if (tokens == null)
                 return Unauthorized(new { message = "Invalid email or password" });
-
+            var user = await _userService.GetUserById(int.Parse(tokens.Value.userId));
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true, // Prevent access from JavaScript
@@ -40,7 +40,7 @@ namespace SearchTool_ServerSide.Controllers
 
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
 
-            return Ok(new { accessToken = tokens.Value.accessToken });
+            return Ok(new { accessToken = tokens.Value.accessToken,role = user.Role.ToString()});
         }
 
         [HttpGet("token-test")]
@@ -49,31 +49,46 @@ namespace SearchTool_ServerSide.Controllers
         {
             return Ok("Authorized");
         }
-        [HttpPost("access-token/{userId}")]
-        [Authorize]
-        public async Task<IActionResult> GenerateToken(int userId)
+        [HttpPost("access-token")]
+        public async Task<IActionResult> GenerateToken()
         {
-            var user = await _userService.GetUserById(userId);
+            // Get refresh token from cookies
+            var refreshToken = Request.Cookies["refreshToken"];
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                return Unauthorized("No refresh token found");
+            }
+
+            // Validate and extract user from refresh token
+            var user =  userAccessToken.ValidateRefreshToken(refreshToken);
             if (user == null)
             {
-                return Forbid();
+                return Unauthorized("Invalid refresh token");
             }
+
+            // Generate new access & refresh tokens
             var tokens = await _userService.Refresh(user.Email);
+            if (tokens == null)
+            {
+                return BadRequest("Failed to refresh token");
+            }
+
+            // Set new refresh token in secure cookies
             var cookieOptions = new CookieOptions
             {
-                HttpOnly = true, // Prevent access from JavaScript
-                Secure = true, // Use only on HTTPS
+                HttpOnly = true, // Prevent JavaScript access
+                Secure = true, // HTTPS only
                 SameSite = SameSiteMode.Strict, // Prevent CSRF
                 Expires = DateTime.UtcNow.AddDays(1) // Expiration time
             };
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
 
-            return tokens != null ? Ok(new
+            return Ok(new
             {
-                accessToken = tokens.Value.accessToken,
-
-            }) : BadRequest("Invalid email or password");
+                accessToken = tokens.Value.accessToken
+            });
         }
+
         [HttpGet("UserById"), Authorize(Policy = "Pharmacist")]
         public async Task<IActionResult> GetUserById()
         {
@@ -102,7 +117,7 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> UpdateUser(UserUpdateDto userUpdateDto)
         {
             var userData = userAccessToken.tokenData();
-             if (userData == null || string.IsNullOrEmpty(userData.UserId))
+            if (userData == null || string.IsNullOrEmpty(userData.UserId))
             {
                 return Unauthorized("Invalid or missing token data");
             }

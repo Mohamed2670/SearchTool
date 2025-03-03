@@ -1,6 +1,8 @@
+using ServerSide.Model;
+
 namespace SearchTool_ServerSide.Models
 {
-    public class Branch
+    public class Branch : IEntity
     {
         public int Id { get; set; }
         public string Name { get; set; }

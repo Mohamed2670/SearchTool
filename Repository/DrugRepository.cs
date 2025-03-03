@@ -1075,6 +1075,26 @@ namespace SearchTool_ServerSide.Repository
 
             return drugs;
         }
+        internal async Task<ICollection<Drug>> GetDrugsByInsurance(string insurance)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug)       // Ensure the Drug property is loaded
+                .Include(di => di.Insurance)  // Ensure the Insurance property is loaded
+                .Where(di => di.Insurance != null && di.Insurance.Name.ToLower() == insurance.ToLower())
+                .Select(di => di.Drug)
+                .Distinct()                 // Avoid duplicate drugs if there are multiple records
+                .ToListAsync();
+
+            return drugs;
+        }
+        internal async Task<ICollection<Insurance>> GetInsurances(string insurance)
+        {
+            var items = await _context.Insurances.Where(x => x.Name.ToLower().Contains(insurance.ToLower())).ToListAsync();
+            return items;
+        }
+
+
+
 
     }
     public sealed class InsuranceMap : ClassMap<Insurance>

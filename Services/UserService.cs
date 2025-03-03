@@ -10,7 +10,7 @@ using ServerSide;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions,BranchRepository _branchRepository)
+    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions, BranchRepository _branchRepository)
     {
         internal async Task<UserReadDto> Register(UserAddDto userAddDto)
         {
@@ -85,13 +85,14 @@ namespace SearchTool_ServerSide.Services
         }
         public async Task<(string accessToken, string refreshToken, string userId)?> Refresh(string email)
         {
+            Console.WriteLine("email : " + email);
             var user = await _userRepository.GetUserByEmail(email);
             if (user == null)
             {
                 return null;
             }
-            var accessToken = TokenGenerate(user, expiresInMinutes: 1);
-            var refreshToken = TokenGenerate(user, expiresInDays: 2);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 3);
+            var refreshToken = TokenGenerate(user, expiresInDays: 1);
             var userId = user.Id.ToString();
             return (accessToken, refreshToken, userId);
         }
@@ -120,5 +121,8 @@ namespace SearchTool_ServerSide.Services
             var userReadDtos = _mapper.Map<ICollection<UserReadDto>>(users);
             return userReadDtos;
         }
+
+       
+
     }
 }
