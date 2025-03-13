@@ -251,7 +251,13 @@ namespace SearchTool_ServerSide.Repository
                 }
                 if (record.PCN.Length < 1)
                 {
-                    record.PCN = record.Bin;
+                    record.PCN = record.Bin + "(Other)";
+                }
+                if (record.RxGroup.Length < 1)
+                {
+
+                    record.RxGroup = record.PCN + "(Other)";
+
                 }
                 // Normalize NDC.
                 record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
@@ -663,11 +669,36 @@ namespace SearchTool_ServerSide.Repository
             return item;
         }
 
-        internal async Task<DrugInsurance> GetDetails(string ndc, int insuranceId)
+        internal async Task<DrugsAlternativesReadDto> GetDetails(string ndc, int insuranceId)
         {
-            var item = await _context.DrugInsurances.FirstOrDefaultAsync(x => x.NDCCode == ndc && x.InsuranceId == insuranceId);
-            return item;
+            var query = from di in _context.DrugInsurances
+                        join irx in _context.InsuranceRxes on di.InsuranceId equals irx.Id
+                        join ipcn in _context.InsurancePCNs on irx.InsurancePCNId equals ipcn.Id
+                        join ins in _context.Insurances on ipcn.InsuranceId equals ins.Id
+                        where di.NDCCode == ndc && di.InsuranceId == insuranceId
+                        select new
+                        {
+                            DrugInsurance = di,
+                            Bin = ins.Bin,
+                            BinFullName = ins.Name,
+                            RxGroup = irx.RxGroup,
+                            PCN = ipcn.PCN
+                        };
+
+            var result = await query.FirstOrDefaultAsync();
+
+            if (result == null)
+                return null;
+
+            var dto = _mapper.Map<DrugsAlternativesReadDto>(result.DrugInsurance);
+            dto.bin = result.Bin;
+            dto.BinFullName = result.BinFullName;
+            dto.rxgroup = result.RxGroup;
+            dto.pcn = result.PCN;
+
+            return dto;
         }
+
 
         // internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
         // {
