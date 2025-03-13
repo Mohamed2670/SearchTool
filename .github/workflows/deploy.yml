@@ -1,36 +1,35 @@
-name: Deploy to AWS EC2
+name: Deploy to EC2
 
 on:
   push:
     branches:
-      - v6  # تشغيل الـ CI/CD لما يتم عمل Push على الفرع v6
+      - v6  # تنفيذ الـ CI/CD عند الـ push على فرع v6
 
 jobs:
   deploy:
-    runs-on: self-hosted  # استخدام الـ runner اللي جهزناه على EC2
+    runs-on: self-hosted  # تشغيل على السيرفر
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Stop Running Application
-        run: sudo systemctl stop kestrel-searchtool
-
-      - name: Pull Latest Changes
+      - name: SSH into EC2 and Deploy
         run: |
-          cd /home/ec2-user/app
-          git pull origin v6
+          ssh -i "C:\Users\youss\Downloads\server\Hannalla_key.pem" ec2-user@ec2-13-60-77-166.eu-north-1.compute.amazonaws.com << 'EOF'
+          
+            echo "Pulling latest changes..."
+            cd /home/ec2-user/app
+            git reset --hard  # تأكد إنك على آخر نسخة من الكود
+            git pull origin v6
 
-      - name: Build and Publish .NET Application
-        run: |
-          cd /home/ec2-user/app
-          dotnet publish -c Release -o out
-          sudo cp -r out /home/ec2-user/app/
+            echo "Building .NET application..."
+            dotnet publish -c Release -o published
 
-      - name: Apply Database Migrations (لو فيه تحديثات)
-        run: |
-          cd /home/ec2-user/app/out
-          dotnet SearchTool-ServerSide.dll database update
+            echo "Restarting service..."
+            sudo systemctl restart kestrel-searchtool
 
-      - name: Restart Application
-        run: sudo systemctl restart kestrel-searchtool
+            echo "Restarting Nginx..."
+            sudo systemctl restart nginx
+
+            echo "Deployment completed successfully!"
+          EOF
