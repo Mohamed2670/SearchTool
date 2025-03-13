@@ -132,7 +132,7 @@ namespace SearchTool_ServerSide.Services
             await _drugRepository.ImportInsurancesFromCsvAsync();
         }
 
-        internal async Task<Insurance> GetInsuranceDetails(string shortName)
+        internal async Task<InsuranceRx> GetInsuranceDetails(string shortName)
         {
             var item = await _drugRepository.GetInsuranceDetails(shortName);
             return item;

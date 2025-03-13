@@ -1134,9 +1134,9 @@ namespace SearchTool_ServerSide.Repository
 
 
 
-        internal async Task<Insurance> GetInsuranceDetails(string shortName)
+        internal async Task<InsuranceRx> GetInsuranceDetails(string shortName)
         {
-            var item = await _context.Insurances.FirstOrDefaultAsync(x => x.Name == shortName);
+            var item = await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.RxGroup == shortName);
             return item;
         }
 
