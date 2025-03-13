@@ -766,6 +766,7 @@ namespace SearchTool_ServerSide.Repository
                         dto.pcn = insuranceRx.InsurancePCN?.PCN;
                         dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
                         dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
+                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
                     }
                     if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
                         dto.branchName = branch.Name;
