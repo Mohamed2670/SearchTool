@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using SearchTool_ServerSide.Authentication;
 using SearchTool_ServerSide.Dtos.UserDtos;
+using SearchTool_ServerSide.Models;
+using SearchTool_ServerSide.Repository;
 using SearchTool_ServerSide.Services;
 
 namespace SearchTool_ServerSide.Controllers
 {
     [ApiController]
     [Route("user")]
-    public class UserController(UserSevice _userService, UserAccessToken userAccessToken) : ControllerBase
+    public class UserController(UserSevice _userService, UserAccessToken userAccessToken, LogRepository _logRepository) : ControllerBase
     {
         [HttpPost]
         public async Task<IActionResult> Register([FromBody] UserAddDto userAddDto)
@@ -37,10 +39,11 @@ namespace SearchTool_ServerSide.Controllers
                 SameSite = SameSiteMode.Strict, // Prevent CSRF
                 Expires = DateTime.UtcNow.AddDays(1) // Expiration time
             };
-
+            Log log = new Log { UserId = int.Parse(tokens.Value.userId) };
+            var logItem = await _logRepository.Add(log);
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
 
-            return Ok(new { accessToken = tokens.Value.accessToken,role = user.Role.ToString()});
+            return Ok(new { accessToken = tokens.Value.accessToken, role = user.Role.ToString() });
         }
 
         [HttpGet("token-test")]
@@ -60,7 +63,7 @@ namespace SearchTool_ServerSide.Controllers
             }
 
             // Validate and extract user from refresh token
-            var user =  userAccessToken.ValidateRefreshToken(refreshToken);
+            var user = userAccessToken.ValidateRefreshToken(refreshToken);
             if (user == null)
             {
                 return Unauthorized("Invalid refresh token");
@@ -82,7 +85,8 @@ namespace SearchTool_ServerSide.Controllers
                 Expires = DateTime.UtcNow.AddDays(1) // Expiration time
             };
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
-
+            Log log = new Log { UserId = int.Parse(tokens.Value.userId) };
+            var logItem = await _logRepository.Add(log);
             return Ok(new
             {
                 accessToken = tokens.Value.accessToken

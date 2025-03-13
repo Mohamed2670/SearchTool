@@ -1,8 +1,9 @@
 using SearchTool_ServerSide.Models;
+using ServerSide.Model;
 
 namespace ServerSide.Models
 {
-    public class Script
+    public class Script : IEntity
     {
         public int Id { get; set; }
         public DateTime Date { get; set; }

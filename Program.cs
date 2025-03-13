@@ -46,6 +46,7 @@ builder.Services.AddScoped<UserAccessToken>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<DrugRepository>();
 builder.Services.AddScoped<UserRepository>();
+builder.Services.AddScoped<LogRepository>();
 builder.Services.AddScoped<BranchRepository>();
 builder.Services.AddScoped<DrugService>();
 builder.Services.AddScoped<UserSevice>();

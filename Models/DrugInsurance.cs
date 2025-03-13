@@ -1,6 +1,8 @@
+using ServerSide.Model;
+
 namespace SearchTool_ServerSide.Models
 {
-    public class DrugInsurance
+    public class DrugInsurance : IEntity
     {
         public required int InsuranceId { get; set; }
         public required int DrugId { get; set; }
@@ -11,14 +13,14 @@ namespace SearchTool_ServerSide.Models
         public decimal Net { get; set; }
         public DateTime date { get; set; }
         public string Prescriber { get; set; }
-        public decimal Quantity { get; set; }
+        public string Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }
         public decimal PatientPayment { get; set; }
-        public Insurance? Insurance { get; set; }
+        public InsuranceRx? Insurance { get; set; }
         public Drug? Drug { get; set; }
         public Branch? Branch { get; set; }
-
+        public int Id { get; set; }
     }
 }

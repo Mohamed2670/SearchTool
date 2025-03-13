@@ -115,10 +115,11 @@ namespace SearchTool_ServerSide.Services
         //     await _drugRepository.oneway();
         // }
 
-        internal async Task<ICollection<DrugInsurance>> GetInsuranceByNdc(string ndc)
+        internal async Task<ICollection<DrugInsuranceReadDto>> GetInsuranceByNdc(string ndc)
         {
             var items = await _drugRepository.GetInsuranceByNdc(ndc);
             return items;
+
         }
 
         internal async Task<ICollection<ScriptItemDto>> GetScriptByScriptCode(string scriptCode)
@@ -126,10 +127,10 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetScriptByScriptCode(scriptCode);
             return items;
         }
-        internal async Task ImportInsurancesFromCsvAsync()
-        {
-            await _drugRepository.ImportInsurancesFromCsvAsync();
-        }
+        // internal async Task ImportInsurancesFromCsvAsync()
+        // {
+        //     await _drugRepository.ImportInsurancesFromCsvAsync();
+        // }
 
         internal async Task<Insurance> GetInsuranceDetails(string shortName)
         {
@@ -164,9 +165,25 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetDrugsByInsurance(insruance);
             return items;
         }
-         internal async Task<ICollection<Insurance>> GetInsurances(string insruance)
+        internal async Task<ICollection<Insurance>> GetInsurances(string insruance)
         {
             var items = await _drugRepository.GetInsurances(insruance);
+            return items;
+        }
+
+        internal async Task<ICollection<Insurance>> GetInsurancesBinsByName(string bin)
+        {
+            var items = await _drugRepository.GetInsurancesBinsByName(bin);
+            return items;
+        }
+        internal async Task<ICollection<InsurancePCN>> GetInsurancesPcnByBinId(int binId)
+        {
+            var items = await _drugRepository.GetInsurancesPcnByBinId(binId);
+            return items;
+        }
+         internal async Task<ICollection<InsuranceRx>> GetInsurancesRxByPcnId(int  pcnId)
+        {
+            var items = await _drugRepository.GetInsurancesRxByPcnId(pcnId);
             return items;
         }
     }

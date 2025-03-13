@@ -5,7 +5,7 @@ using SearchTool_ServerSide.Services;
 
 namespace SearchTool_ServerSide.Controllers
 {
-    [ApiController, Route("drug"),Authorize(Policy = "Pharmacist")]
+    [ApiController, Route("drug"), Authorize(Policy = "Pharmacist")]
     public class DrugController(DrugService _drugService, UserAccessToken userAccessToken) : ControllerBase
     {
         [HttpGet, AllowAnonymous]
@@ -111,7 +111,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllLatestScripts();
             return Ok(items);
         }
-        [HttpGet("GetAllDrugs")]
+        [HttpGet("GetAllDrugs"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugs(classId);
@@ -129,7 +129,7 @@ namespace SearchTool_ServerSide.Controllers
         //     await _drugService.oneway();
         //     return Ok(true);
         // }
-        [HttpGet("GetInsuranceByNdc")]
+        [HttpGet("GetInsuranceByNdc"), AllowAnonymous]
         public async Task<IActionResult> GetInsuranceByNdc([FromQuery] string ndc)
         {
             var items = await _drugService.GetInsuranceByNdc(ndc);
@@ -150,12 +150,12 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetScriptByScriptCode(scriptCode);
             return Ok(items);
         }
-        [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
-        public async Task<IActionResult> ImportInsurancesFromCsvAsync()
-        {
-            await _drugService.ImportInsurancesFromCsvAsync();
-            return Ok();
-        }
+        // [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
+        // public async Task<IActionResult> ImportInsurancesFromCsvAsync()
+        // {
+        //     await _drugService.ImportInsurancesFromCsvAsync();
+        //     return Ok();
+        // }
         [HttpGet("GetInsuranceDetails"), Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetInsuranceDetails([FromQuery] string shortName)
         {
@@ -165,7 +165,7 @@ namespace SearchTool_ServerSide.Controllers
         [HttpGet("GetAlternativesByClassIdBranchId")]
         public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId)
         {
-              var userData = userAccessToken.tokenData();
+            var userData = userAccessToken.tokenData();
             if (userData == null || string.IsNullOrEmpty(userData.UserId))
             {
                 return Unauthorized("Invalid or missing token data");
@@ -194,6 +194,24 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetInsurances([FromQuery] string insurance)
         {
             var items = await _drugService.GetInsurances(insurance);
+            return Ok(items);
+        }
+        [HttpGet("GetInsurancesBinsByName")]
+        public async Task<IActionResult> GetInsurancesBinsByName([FromQuery] string bin)
+        {
+            var items = await _drugService.GetInsurancesBinsByName(bin);
+            return Ok(items);
+        }
+        [HttpGet("GetInsurancesPcnByBinId")]
+        public async Task<IActionResult> GetInsurancesPcnByBinId([FromQuery] int binId)
+        {
+            var items = await _drugService.GetInsurancesPcnByBinId(binId);
+            return Ok(items);
+        }
+        [HttpGet("GetInsurancesRxByPcnId")]
+        public async Task<IActionResult> GetInsurancesRxByPcnId([FromQuery] int pcnId)
+        {
+            var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
             return Ok(items);
         }
     }

@@ -1,6 +1,8 @@
+using ServerSide.Model;
+
 namespace SearchTool_ServerSide.Models
 {
-    public class ClassInsurance
+    public class ClassInsurance : IEntity 
     {
         public int InsuranceId { get; set; }
         public int ClassId { get; set; }
@@ -16,6 +18,7 @@ namespace SearchTool_ServerSide.Models
         public Branch Branch { get; set; }
         public Drug Drug { get; set; }
         public DrugClass DrugClass { get; set; }
-        public Insurance Insurance { get; set; }
+        public InsuranceRx Insurance { get; set; }
+        public int Id { get; set; }
     }
 }

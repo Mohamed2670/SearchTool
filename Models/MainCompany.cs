@@ -1,6 +1,8 @@
+using ServerSide.Model;
+
 namespace SearchTool_ServerSide.Models
 {
-    public class MainCompany
+    public class MainCompany : IEntity
     {
         public int Id { get; set; }
         public required string Name { get; set; }

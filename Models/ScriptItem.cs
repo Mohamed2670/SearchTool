@@ -1,8 +1,9 @@
+using ServerSide.Model;
 using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Models
 {
-    public class ScriptItem
+    public class ScriptItem : IEntity
     {
         public int Id { get; set; }
         public int ScriptId { get; set; }
@@ -14,7 +15,7 @@ namespace SearchTool_ServerSide.Models
 
         public string RxNumber { get; set; }
         public int InsuranceId { get; set; }
-        public Insurance Insurance { get; set; }
+        public InsuranceRx Insurance { get; set; }
 
         public int DrugClassId { get; set; }
         public DrugClass DrugClass { get; set; }
@@ -24,7 +25,7 @@ namespace SearchTool_ServerSide.Models
 
         // Script Item Details
         public string PF { get; set; }
-        public decimal Quantity { get; set; }
+        public string Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

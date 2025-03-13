@@ -11,7 +11,7 @@ namespace SearchTool_ServerSide.Dtos
         public string Insurance { get; set; }
         public string PF { get; set; }
         public string Prescriber { get; set; }
-        public decimal Quantity { get; set; }
+        public string Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

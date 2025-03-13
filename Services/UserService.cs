@@ -48,7 +48,7 @@ namespace SearchTool_ServerSide.Services
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)
         {
             var expirationDate = DateTime.UtcNow.AddMinutes(expiresInMinutes);
-
+        
             if (expiresInDays > 0)
             {
                 expirationDate = DateTime.UtcNow.AddDays(expiresInDays);

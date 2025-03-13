@@ -20,6 +20,9 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugBranch> DrugBranches { get; set; }
         public DbSet<MainCompany> MainCompanies { get; set; }
         public DbSet<Specialty> Specialties { get; set; }
+        public DbSet<InsuranceRx> InsuranceRxes { get; set; }
+        public DbSet<InsurancePCN> InsurancePCNs { get; set; }
+        public DbSet<Log> Logs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -28,7 +31,7 @@ namespace SearchTool_ServerSide.Data
             // Define Composite Keys
             modelBuilder.Entity<DrugInsurance>(entity =>
             {
-                entity.HasKey(item => new { item.InsuranceId, item.DrugId ,item.BranchId});
+                entity.HasKey(item => new { item.InsuranceId, item.DrugId, item.BranchId });
             });
 
             modelBuilder.Entity<ClassInsurance>(entity =>

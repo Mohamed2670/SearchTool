@@ -1,0 +1,194 @@
+,bin,pcn,description,help_desk_number,ncpdp_version,plan_type,pricing_formula,dir_fee,shortnames (Ins)
+0,3858,A4,Tri-Care Express Scripts,(800) 684-4466,D0,  ,INS,,AA
+1,4336,ADV,Caremark,(800) 364-6331,D0,  ,INS,,BF
+2,610014,,MEDCO MEDICARE PART D,(800) 922-1557,D0,  ,INS,,AC
+3,610502,meddaet,Aetna Medicare,(800) 238-6279,D0,  ,INS,,AD
+4,20107,wg,IngenioRX  Claim,(833) 296-5037,D0,  ,INS,,
+5,20099,WG,Anthem BCBS,(800) 522-7487,D0,  ,INS,,AF
+6,610602,NVTD,Navitus Health Solutions,          ,D0,  ,INS,,AG
+7,610011,IRX,OptumRx,(800) 880-1188,D0,  ,INS,,AH
+8,610279,9999,United Healthcare,(800) 797-9791,D0,  ,INS,,AI
+9,15581,3200000,Humana Medicare,(800) 865-8715,D0,  ,INS,,AJ
+10,610053,,,          ,D0,  ,INS,,
+66,20115,IS,,          ,D0,  ,INS,209374,
+122,17010,CIMCARE,Cigna,,D0,  ,INS,,AM
+123,11172,,kaiser,          ,D0,  ,INS,,
+124,610014,PEU,MEDCO HEALTH ,(800) 922-1557,D0,  ,INS,,AO
+125,12312,partd,Envision Rx Options,(800) 361-4542,D0,  ,INS,209312,AP
+126,3858,MD,MEDGR,(800) 824-0898,D0,  ,INS,,AQ
+127,3585,,MedImpact Healthcare Systems,          ,D0,  ,INS,,
+128,610097,9999,PACIFICARE LIFE AND H,          ,D0,  ,INS,209380,AS
+129,18141,9999,ANTHEM BLUE CROSS,          ,D0,  ,INS,,
+130,610455,,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+131,11552,ILDR,,(800) 821-4795,D0,  ,INS,,
+187,610239,FEPRX,FEPRX,(800) 364-6331,D0,  ,INS,,
+188,17051,PRS,PINNACLE,          ,D0,  ,INS,,AX
+189,16127,,PCHS,          ,D0,  ,INS,,
+190,600471,7777,REST,(800) 880-1188,D0,  ,INS,,
+191,610600,,Alphascrip,(877) 274-3244,D0,  ,INS,,
+192,21783,AE02,NCE,          ,D0,  ,INS,,
+193,4336,HNMC,HNMC,(800) 364-6331,D0,  ,INS,,
+194,15574,ASPROD1,ASPROD1,(800) 522-7487,D0,  ,INS,,
+195,15433,SSN,,          ,D0,  ,INS,,
+251,4336,MEDDADV,Caremark,(800) 364-6331,D0,  ,INS,209377,BF
+252,12114,,Caremark,(800) 364-6331,D0,  ,INS,,BF
+253,13089,,Caremark,(800) 777-1023,D0,  ,INS,,BF
+254,16499,,Horizon,(800) 522-7487,D0,  ,INS,,BI
+255,600428,1420000,Cigna,(800) 522-7487,D0,  ,INS,,AM
+256,17142,ASPROD1,,          ,D0,  ,INS,,
+312,17449,6792000,Cigna,(800) 522-7487,D0,  ,INS,,AM
+313,4261,CAL,Default Claim Format,          ,D0,  ,INS,,BO
+314,610494,9999,Prescription Solutions,          ,D0,  ,INS,,BN
+315,15599,5440000,Default Claim Format,800-783-1307,D0,  ,INS,,BO
+316,610593,VA,informedRx,(800) 880-1188,D0,  ,INS,,BP
+317,6053,SS,ScriptSave Medical Security,(800) 404-1031,D0,  ,INS,,
+318,610127,,Prescription Solutions,          ,D0,  ,INS,,BN
+319,18786,,,          ,D0,  ,INS,,
+375,4336,77993333,,(800) 364-6331,D0,  ,INS,,
+431,610455,AHPPARTD,,(800) 821-4795,D0,  ,INS,,
+487,4915,,bc bs of alabama,          ,D0,  ,INS,,
+488,610502,,aetna,(800) 238-6279,D0,  ,INS,,BW
+489,3858,wc,workers comp,(800) 824-0898,D0,  ,INS,,
+490,3585,56085,MedImpact Healthcare Systems,          ,D0,  ,INS,,
+491,610415,,Caremark,(800) 345-5413,D0,  ,INS,,BF
+492,26696,77993322,blue shield medicare ,(800) 364-6331,D0,  ,INS,209375,CA
+493,610600,as,Alphascrip,(877) 274-3244,D0,  ,INS,,
+494,12528,VENTEG,MY HEALTH LA,          ,D0,Private Pay,INS,,CC
+495,20123,IRXCOMM,,(833) 296-5038,D0,  ,INS,,
+551,5947,CLAIMCR,,(800) 880-1188,D0,  ,INS,,
+607,12882,kpp,12882,(800) 880-1188,D0,  ,INS,,
+608,3858,A4,Express Scripts,(800) 684-4466,D0,  ,INS,,CG
+609,6053,msc,,(800) 404-1031,D0,  ,INS,,
+665,610241,HERR,,,D0,  ,INS,,
+721,610014,VDZ,,(800) 922-1557,D0,  ,INS,,
+778,14658,IPM,,(877) 860-8846,D0,Commercial PBM Insurance,INS,,
+834,610014,COBSEG,,(800) 922-1557,D0,  ,INS,,
+890,15284,,,          ,D0,  ,INS,,
+946,6558,,,(402) 753-2800,D0,  ,INS,,
+1002,610011,GCHP,Gold Coast,(800) 880-1188,D0,  ,INS,,
+1003,610014,meddprime,,(800) 922-1557,D0,  ,INS,209378,
+1059,610014,MEDDPRIME,,(800) 922-1557,D0,  ,INS,209378,
+1115,600471,DATAUNVAIL,,(800) 880-1188,D0,  ,INS,,
+1171,18643,BCBS,,          ,D0,  ,INS,,
+1227,20032,AHC,,          ,D0,  ,INS,,
+1283,4336,77993344,,(800) 364-6331,D0,  ,INS,,
+1339,600428,1910000,Blue Shield of CA,(800) 522-7487,D0,  ,INS,,
+1340,3585,97889,,          ,D0,  ,INS,,
+1396,610011,CTRXMEDD,,(800) 880-1188,D0,  ,INS,,
+1452,3585,ASPROD1,,          ,D0,  ,INS,,
+1508,600428,6650000,Blue shield CA,(800) 522-7487,D0,  ,INS,,
+1509,600428,2550000,Cigna,(800) 522-7487,D0,  ,INS,,AM
+1510,17688,9743,,          ,D0,  ,INS,,
+1566,800008,,,          ,D0,  ,INS,,
+1622,3585,70000,,          ,D0,  ,INS,,
+1678,800004,8126,,          ,D0,  ,INS,,
+1734,610623,2050000,,(888) 437-1508,D0,  ,INS,,
+1790,15284,crx,,          ,D0,  ,INS,,
+1846,16580,,,          ,D0,  ,INS,,
+1902,610575,,Express Scripts,(800) 824-0898,D0,  ,INS,,CG
+1903,3585,56085,,          ,D0,  ,INS,,
+1959,20974,cwhs,,          ,D0,  ,INS,,
+2015,4336,MCAIDADV,,(800) 364-6331,D0,  ,INS,,
+2071,5285,ACB,,          ,D0,  ,INS,,
+2127,12353,7820000,,(800) 522-7487,D0,  ,INS,,
+2183,22659,6334225,MEDICALRX,          ,D0,  ,INS,,
+2184,610212,,,          ,D0,  ,INS,,
+2240,9893,ROIRX,,(800) 361-4542,D0,  ,INS,,
+2296,11552,BCTX,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+2297,610709,,,(800) 880-1188,D0,  ,INS,,
+2353,600428,7810000,,(800) 522-7487,D0,  ,INS,,
+2409,610591,,Caremark,(800) 364-6331,D0,  ,INS,,BF
+2410,16127,cwhs,phcs,          ,D0,  ,INS,,DW
+,,,,,,,,,
+2412,16499,hzrx,Horizon,(800) 522-7487,D0,  ,INS,,BI
+2413,17274,pdmi,truescripts,855-326-2159,D0,  ,INS,,
+2414,610020,,Pharmacy Data Management,(800) 767-4226,D0,  ,INS,,EA
+2415,610862,RWRX,,          ,D0,  ,INS,,
+2471,603017,BAZ,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+2472,603286,1410000,CatalystRx,(800) 880-1188,D0,  ,INS,,ED
+2473,12833,FLBC,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+2474,11891,dataunvail,HospiScript,(800) 427-4893,D0,  ,INS,,
+2475,610649,3200000,humana connect,(800) 865-8715,D0,  ,INS,,
+2476,21684,datunvail,,          ,D0,  ,INS,,
+2532,24789,WMHRX,,          ,D0,  ,INS,,
+2588,23385,cpt,,          ,D0,  ,INS,,
+2644,17431,ebms,,          ,D0,  ,INS,,
+2700,610740,flipt,,          ,D0,  ,INS,,
+2756,610494,4500,Prescription Solutions,          ,D0,  ,INS,,BN
+2757,800001,,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+2758,610011,,,,D0,  ,INS,,
+2814,24368,3207,,,D0,  ,INS,,
+2870,3858,A4,,,D0,  ,INS,,
+2926,8878,WDRX,,,D0,  ,INS,,
+2982,600428,1420000,,,D0,  ,INS,,
+3038,4336,HNET,,,D0,  ,INS,,
+3094,21395,CME,,,D0,  ,INS,,
+3150,17076,9999,,,D0,  ,INS,,
+3206,19025,8001002,,,D0,  ,INS,,
+3262,0,4300,,,D0,  ,INS,,
+3318,15905,,,,D0,  ,INS,,
+3374,23575,9999,,,D0,  ,INS,,
+3430,610602,EGWP,Navitus Health Solutions,          ,D0,  ,INS,,AG
+3431,15814,6090000,,,D0,  ,INS,,
+3487,610257,SCSF,,          ,D0,  ,INS,,
+3543,610127,SCSF,Prescription Solutions,          ,D0,  ,INS,,BN
+3544,3585,KPFLUCLNC,MedImpact Healthcare Systems,          ,D0,  ,INS,,
+3545,18448,66202303,,,D0,  ,INS,,
+3601,610237,123119,,,D0,  ,INS,,
+3657,4336,IS,Caremark,(800) 364-6331,D0,Medicare,INS,,BF
+3658,4336,WG,Caremark,,D0,  ,INS,,BF
+3659,610210,prx,Paramount Rx,          ,D0,  ,INS,,FJ
+3660,4336,PARTBADV,,,D0,  ,INS,,
+3716,20958,7960000,,,D0,  ,INS,,
+3772,21825,IRX,,,D0,  ,INS,,
+3828,5377,10000019,,,D0,  ,INS,,
+3884,0,,,,D0,  ,INS,,
+3940,21205,,,,D0,  ,INS,,
+3996,611790,comm,Capital Rx,          ,D0,  ,INS,,FQ
+3997,15839,,,,D0,  ,INS,,
+4053,610852,,,,D0,  ,INS,,
+4109,25201,MOHMKP,,,D0,  ,INS,,
+4165,610494,,,,D0,  ,INS,,
+4221,20115,NS,,,D0,  ,INS,,
+4277,3858,MA,,(800) 824-0898,D0,  ,INS,,
+4333,14179,9743,,,D0,  ,INS,,
+4389,0,OHCP,,,D0,  ,INS,,
+4445,601341,,,,D0,  ,INS,,
+4501,9430,,,,D0,  ,INS,,
+4557,17010,cimcare,,,D0,  ,INS,,
+4613,17010,CIMCARE,,,D0,  ,INS,,
+4669,3585,28914,,,D0,  ,INS,,
+4725,610852,CHM,,,D0,  ,INS,,
+4781,17010,0215COMM,,,D0,  ,INS,,
+4837,1553,INM,,,D0,  ,INS,,
+4893,20099,IS,,,D0,  ,INS,,
+4949,610127,1960000,Prescription Solutions,,D0,  ,INS,,BN
+4950,610602,NVT,,,D0,  ,INS,,
+5006,12114,COBCRK,Caremark,,D0,  ,INS,,BF
+5007,24251,OHRXPFFS,,,D0,  ,INS,,
+5063,610502,670000,Aetna Medicare,,D0,  ,INS,,AD
+5064,610014,A4,MEDCO MEDICARE PART D,,D0,  ,INS,,AC
+5065,17010,0518GWH,Cigna,,D0,  ,INS,,AM
+5066,610228,PRS,,,D0,  ,INS,,
+5122,17051,PRS,,,D0,  ,INS,,
+5178,17366,9999,,,D0,  ,INS,,
+5290,22022,ICS,,,D0,  ,INS,,
+5346,600426,54,BOTOX SAVINGS,(800) 433-4893,D0,  ,INS,,
+5347,20099,CH,,,D0,  ,INS,,
+5403,17010,2150000,,,D0,  ,INS,,
+5459,11552,1215,Blue Cross Blue Shield,(800) 821-4795,D0,  ,INS,,DS
+5460,610548,servu,,          ,D0,  ,INS,,
+5516,610127,1960000,Prescription Solutions,          ,D0,  ,INS,,BN
+5517,25169,AMWINS,,,D0,  ,INS,,
+5573,11552,BOE,,,D0,  ,INS,,
+5629,24160,14032015,,,D0,  ,INS,,
+5685,610770,MPPPCRX,,          ,D0,  ,INS,,
+5741,610268,,,,D0,  ,INS,,
+5853,610014,,,,D0,  ,INS,,
+5909,610770,CRXMD,,          ,D0,  ,INS,,
+5965,4336,77993322,,,D0,  ,INS,,
+6021,17010,0519PAYR,,,D0,  ,INS,,
+6077,26696,MPPP3322,Caremark MPPP,          ,D0,  ,INS,,
+6134,26696,77993333,,,D0,  ,INS,,
+6190,0,          ,PF - DEFAULT         ,                                                            ,,  ,X ,,X 
+6191,0,          ,PF - RxNet           ,                                                            ,,  ,X0,,
