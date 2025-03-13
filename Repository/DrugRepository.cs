@@ -1043,57 +1043,64 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
-        // public async Task ImportInsurancesFromCsvAsync(string filePath = "insurance.csv")
-        // {
-        //     List<Insurance> csvRecords;
-        //     // Parse the CSV file.
-        //     using (var reader = new StreamReader(filePath))
-        //     using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-        //     {
-        //         csv.Context.RegisterClassMap<InsuranceMap>();
-        //         csvRecords = csv.GetRecords<Insurance>().ToList();
-        //     }
+        public async Task ImportInsurancesFromCsvAsync(string filePath = "insurance.csv")
+        {
+            List<InsuranceCsvRecord> csvRecords;
 
-        //     // Build a dictionary using a composite key (Name, RxGroup, Bin).
-        //     var insuranceDic = (await _context.Insurances.ToListAsync())
-        //         .ToDictionary(x => GetCompositeKey(x), StringComparer.OrdinalIgnoreCase);
+            // Read the CSV file
+            using (var reader = new StreamReader(filePath))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                csv.Context.RegisterClassMap<InsuranceCsvMap>(); // Register the corrected mapping
+                csvRecords = csv.GetRecords<InsuranceCsvRecord>().ToList();
+            }
 
-        //     var newInsurances = new List<Insurance>();
+            // Fetch all existing insurances from DB and index them by BIN
+            var insuranceDic = (await _context.Insurances.ToListAsync())
+                .ToDictionary(x => x.Bin, StringComparer.OrdinalIgnoreCase);
 
-        //     foreach (var csvRecord in csvRecords)
-        //     {
-        //         if (csvRecord.Bin.Length < 6)
-        //         {
-        //             csvRecord.Bin = csvRecord.Bin.PadLeft(6, '0');
-        //         }
-        //         // Skip if any required fields are missing.
-        //         if (string.IsNullOrWhiteSpace(csvRecord.Name) ||
-        //             string.IsNullOrWhiteSpace(csvRecord.Bin))
-        //         {
-        //             continue;
-        //         }
+            foreach (var csvRecord in csvRecords)
+            {
+                // Ensure Full Name is at least 6 characters long by padding with leading zeros
+                if (csvRecord.Bin.Length < 6)
+                {
+                    csvRecord.Bin = csvRecord.Bin.PadLeft(6, '0');
+                }
 
-        //         // Build the composite key for the CSV record.
-        //         var compositeKey = GetCompositeKey(csvRecord);
-        //         if (insuranceDic.TryGetValue(compositeKey, out var existingInsurance))
-        //         {
-        //             existingInsurance.HelpDeskNumber = csvRecord.HelpDeskNumber;
-        //         }
-        //         else
-        //         {
-        //             newInsurances.Add(csvRecord);
-        //         }
-        //     }
+                // Skip if BIN is empty or invalid
+                if (string.IsNullOrWhiteSpace(csvRecord.Bin))
+                {
+                    continue;
+                }
 
-        //     _context.Insurances.AddRange(newInsurances);
-        //     await _context.SaveChangesAsync();
-        // }
+                // Search in the database by BIN and update Full Name
+                if (insuranceDic.TryGetValue(csvRecord.Bin, out var existingInsurance))
+                {
+                    existingInsurance.Name = csvRecord.FullName;
+                }
+            }
 
-        // // Helper method to create a composite key from Name, RxGroup, and Bin.
-        // private string GetCompositeKey(Insurance insurance)
-        // {
-        //     return $"{insurance.Name.Trim().ToLowerInvariant()}|{insurance.RxGroup.Trim().ToLowerInvariant()}|{insurance.Bin.Trim().ToLowerInvariant()}";
-        // }
+            await _context.SaveChangesAsync();
+        }
+
+        // CSV model with correct header mapping
+        public class InsuranceCsvRecord
+        {
+            public string Bin { get; set; }
+            public string FullName { get; set; }
+        }
+
+        // Mapping class for CsvHelper
+        public sealed class InsuranceCsvMap : ClassMap<InsuranceCsvRecord>
+        {
+            public InsuranceCsvMap()
+            {
+                Map(m => m.Bin).Name("BIN");
+                Map(m => m.FullName).Name("Full Name");
+            }
+        }
+
+
 
         internal async Task<Insurance> GetInsuranceDetails(string shortName)
         {
@@ -1146,6 +1153,8 @@ namespace SearchTool_ServerSide.Repository
                         dto.InsuranceId = insruace.Id;
                         dto.pcn = insruacePCN.PCN;
                         dto.bin = insruaceBin.Bin;
+                        dto.BinFullName = insruaceBin.Name;
+
                     }
                     if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
                         dto.branchName = branch.Name;
@@ -1218,9 +1227,12 @@ namespace SearchTool_ServerSide.Repository
 
         internal async Task<ICollection<Insurance>> GetInsurancesBinsByName(string bin)
         {
-            var items = await _context.Insurances.Where(x => x.Bin.ToLower().Contains(bin.ToLower())).ToListAsync();
+            var items = await _context.Insurances
+                .Where(x => x.Bin.ToLower().Contains(bin.ToLower()) || x.Name.ToLower().Contains(bin.ToLower()))
+                .ToListAsync();
             return items;
         }
+
         internal async Task<ICollection<InsurancePCN>> GetInsurancesPcnByBinId(int binId)
         {
             var items = await _context.InsurancePCNs.Where(x => x.InsuranceId == binId).ToListAsync();

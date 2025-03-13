@@ -19,10 +19,11 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public decimal PatientPayment { get; set; }
         public string DrugClass { get; set; }
         public string branchName { get; set; }
-        
+
         // Added missing properties
         public string bin { get; set; }
         public string pcn { get; set; }
         public string rxgroup { get; set; }
+        public string BinFullName { get; set; }
     }
 }

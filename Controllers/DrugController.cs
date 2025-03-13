@@ -150,12 +150,12 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetScriptByScriptCode(scriptCode);
             return Ok(items);
         }
-        // [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
-        // public async Task<IActionResult> ImportInsurancesFromCsvAsync()
-        // {
-        //     await _drugService.ImportInsurancesFromCsvAsync();
-        //     return Ok();
-        // }
+        [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
+        public async Task<IActionResult> ImportInsurancesFromCsvAsync()
+        {
+            await _drugService.ImportInsurancesFromCsvAsync();
+            return Ok();
+        }
         [HttpGet("GetInsuranceDetails"), Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetInsuranceDetails([FromQuery] string shortName)
         {

@@ -127,10 +127,10 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetScriptByScriptCode(scriptCode);
             return items;
         }
-        // internal async Task ImportInsurancesFromCsvAsync()
-        // {
-        //     await _drugRepository.ImportInsurancesFromCsvAsync();
-        // }
+        internal async Task ImportInsurancesFromCsvAsync()
+        {
+            await _drugRepository.ImportInsurancesFromCsvAsync();
+        }
 
         internal async Task<Insurance> GetInsuranceDetails(string shortName)
         {
