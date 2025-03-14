@@ -59,7 +59,8 @@ builder.Services.AddHttpContextAccessor();
 var allowedOrigins = new List<string>
 {
     "https://medisearchtool.com",
-    "http://localhost:5173",
+    "https://pharmacy.medisearchtool.com",
+    "http://localhost:5173"
 };
 
 builder.Services.AddCors(options =>
