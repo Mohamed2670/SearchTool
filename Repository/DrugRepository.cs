@@ -1,3 +1,4 @@
+using System;
 using System.Formats.Asn1;
 using System.Globalization;
 using System.Linq;
@@ -259,6 +260,7 @@ namespace SearchTool_ServerSide.Repository
                     record.RxGroup = record.PCN + "(Other)";
 
                 }
+                record.RxGroup = record.RxGroup.Trim();
                 // Normalize NDC.
                 record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
                 // ---- Process Insurance
@@ -1251,6 +1253,37 @@ namespace SearchTool_ServerSide.Repository
 
             return drugs;
         }
+        internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug) // Load Drug
+                .Include(di => di.Insurance) // Load InsuranceRx
+                    .ThenInclude(ir => ir.InsurancePCN) // Load InsurancePCN for access to PCN
+                .Where(di => di.Insurance != null
+                             && di.Insurance.InsurancePCN != null
+                             && di.Insurance.InsurancePCN.PCN.ToLower() == pcn.ToLower())
+                .Select(di => di.Drug)
+                .Distinct() // Avoid duplicate drugs if multiple records exist
+                .ToListAsync();
+
+            return drugs;
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByBIN(string bin)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug) // Load Drug
+                .Include(di => di.Insurance) // Load InsuranceRx
+                    .ThenInclude(ir => ir.InsurancePCN) // Load InsurancePCN for access to PCN
+                .Where(di => di.Insurance != null
+                             && di.Insurance.InsurancePCN.Insurance.Bin != null
+                             && di.Insurance.InsurancePCN.Insurance.Bin.ToLower() == bin.ToLower())
+                .Select(di => di.Drug)
+                .Distinct() // Avoid duplicate drugs if multiple records exist
+                .ToListAsync();
+
+            return drugs;
+        }
+
         internal async Task<ICollection<Insurance>> GetInsurances(string insurance)
         {
             var items = await _context.Insurances.Where(x => x.Name.ToLower().Contains(insurance.ToLower())).ToListAsync();
@@ -1273,6 +1306,12 @@ namespace SearchTool_ServerSide.Repository
         internal async Task<ICollection<InsuranceRx>> GetInsurancesRxByPcnId(int pcnId)
         {
             var items = await _context.InsuranceRxes.Where(x => x.InsurancePCNId == pcnId).ToListAsync();
+            return items;
+        }
+
+        internal async Task<ICollection<InsuranceRx>> GetAllRxGroups()
+        {
+            var items = await _context.InsuranceRxes.ToListAsync();
             return items;
         }
     }

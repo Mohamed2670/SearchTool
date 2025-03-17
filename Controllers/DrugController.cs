@@ -184,10 +184,22 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetDrugsByInsurance(insuranceId, drug);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByInsuranceName")]
+        [HttpGet("GetDrugsByInsuranceName"), AllowAnonymous]
         public async Task<IActionResult> GetDrugsByInsurance([FromQuery] string insurance)
         {
             var items = await _drugService.GetDrugsByInsurance(insurance);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByPCN"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByPCN([FromQuery] string pcn)
+        {
+            var items = await _drugService.GetDrugsByPCN(pcn);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByBIN"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByBIN([FromQuery] string bin)
+        {
+            var items = await _drugService.GetDrugsByBIN(bin);
             return Ok(items);
         }
         [HttpGet("GetInsurances")]
@@ -212,6 +224,12 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetInsurancesRxByPcnId([FromQuery] int pcnId)
         {
             var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
+            return Ok(items);
+        }
+        [HttpGet("GetAllRxGroups")]
+        public async Task<IActionResult> GetAllRxGroups()
+        {
+            var items = await _drugService.GetAllRxGroups();
             return Ok(items);
         }
     }

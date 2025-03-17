@@ -165,6 +165,16 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetDrugsByInsurance(insruance);
             return items;
         }
+         internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
+        {
+            var items = await _drugRepository.GetDrugsByPCN(pcn);
+            return items;
+        }
+           internal async Task<ICollection<Drug>> GetDrugsByBIN(string bin)
+        {
+            var items = await _drugRepository.GetDrugsByBIN(bin);
+            return items;
+        }
         internal async Task<ICollection<Insurance>> GetInsurances(string insruance)
         {
             var items = await _drugRepository.GetInsurances(insruance);
@@ -184,6 +194,12 @@ namespace SearchTool_ServerSide.Services
          internal async Task<ICollection<InsuranceRx>> GetInsurancesRxByPcnId(int  pcnId)
         {
             var items = await _drugRepository.GetInsurancesRxByPcnId(pcnId);
+            return items;
+        }
+
+        internal async Task<ICollection<InsuranceRx>> GetAllRxGroups()
+        {
+            var items = await _drugRepository.GetAllRxGroups();
             return items;
         }
     }
