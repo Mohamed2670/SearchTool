@@ -39,8 +39,8 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
-            var accessToken = TokenGenerate(user, expiresInMinutes: 120);
-            var refreshToken = TokenGenerate(user, expiresInDays: 1);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 1000);
+            var refreshToken = TokenGenerate(user, expiresInDays: 2);
             var userId = user.Id.ToString();
             var branchId = user.BranchId.ToString();
             return (accessToken, refreshToken, userId, branchId);
@@ -91,8 +91,8 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
-            var accessToken = TokenGenerate(user, expiresInMinutes: 120);
-            var refreshToken = TokenGenerate(user, expiresInDays: 1);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 1000);
+            var refreshToken = TokenGenerate(user, expiresInDays: 2);
             var userId = user.Id.ToString();
             return (accessToken, refreshToken, userId);
         }
