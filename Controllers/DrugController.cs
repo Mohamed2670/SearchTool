@@ -20,6 +20,12 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.Procces2();
             return Ok();
         }
+        [HttpGet("/GetAllDrugs"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugs()
+        {
+            var items = await _drugService.GetAll();
+            return Ok(items);
+        }
         [HttpGet("SearchByNdc")]
         public async Task<IActionResult> SearchByNdc([FromQuery] string ndc)
         {
@@ -156,12 +162,7 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.ImportInsurancesFromCsvAsync();
             return Ok();
         }
-        [HttpGet("GetInsuranceDetails"), Authorize(Policy = "Admin")]
-        public async Task<IActionResult> GetInsuranceDetails([FromQuery] string shortName)
-        {
-            var item = await _drugService.GetInsuranceDetails(shortName);
-            return Ok(item);
-        }
+
         [HttpGet("GetAlternativesByClassIdBranchId")]
         public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId)
         {
@@ -226,11 +227,6 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
             return Ok(items);
         }
-        [HttpGet("GetAllRxGroups")]
-        public async Task<IActionResult> GetAllRxGroups()
-        {
-            var items = await _drugService.GetAllRxGroups();
-            return Ok(items);
-        }
+
     }
 }

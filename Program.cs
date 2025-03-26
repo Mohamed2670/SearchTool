@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SearchTool_ServerSide.Authentication;
 using SearchTool_ServerSide.Data;
+using SearchTool_ServerSide.Middleware;
 using SearchTool_ServerSide.Repository;
 using SearchTool_ServerSide.Services;
 using ServerSide;
@@ -48,8 +49,11 @@ builder.Services.AddScoped<DrugRepository>();
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<LogRepository>();
 builder.Services.AddScoped<BranchRepository>();
+builder.Services.AddScoped<InsuranceRepository>();
 builder.Services.AddScoped<DrugService>();
 builder.Services.AddScoped<UserSevice>();
+builder.Services.AddScoped<InsuranceService>();
+builder.Services.AddScoped<LogsService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
@@ -60,7 +64,9 @@ var allowedOrigins = new List<string>
 {
     "https://medisearchtool.com",
     "https://pharmacy.medisearchtool.com",
-    "http://localhost:5173"
+    "http://localhost:5173",
+        "http://localhost:5174",
+
 };
 
 builder.Services.AddCors(options =>
@@ -84,6 +90,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("CorsPolicy");
-
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseMiddleware<UserLogsMiddleware>();    
 app.MapControllers();
 app.Run();

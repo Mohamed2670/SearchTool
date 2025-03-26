@@ -21,6 +21,9 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public string branchName { get; set; }
 
         // Added missing properties
+        public int binId { get; set; }
+        public int pcnId { get; set; }
+        public int rxgroupId { get; set; }
         public string bin { get; set; }
         public string pcn { get; set; }
         public string rxgroup { get; set; }

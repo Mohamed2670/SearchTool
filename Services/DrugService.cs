@@ -1,6 +1,7 @@
 using AutoMapper;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
+using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
 using ServerSide.Models;
@@ -132,11 +133,6 @@ namespace SearchTool_ServerSide.Services
             await _drugRepository.ImportInsurancesFromCsvAsync();
         }
 
-        internal async Task<InsuranceRx> GetInsuranceDetails(string shortName)
-        {
-            var item = await _drugRepository.GetInsuranceDetails(shortName);
-            return item;
-        }
 
         internal async Task<ICollection<Drug>> GetDrugsByClassBranch(int classId, int branchId)
         {
@@ -197,9 +193,11 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<InsuranceRx>> GetAllRxGroups()
+
+
+        internal async Task<IEnumerable<Drug>> GetAll()
         {
-            var items = await _drugRepository.GetAllRxGroups();
+           var items = await _drugRepository.GetAll();
             return items;
         }
     }

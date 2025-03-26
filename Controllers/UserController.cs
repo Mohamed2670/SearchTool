@@ -39,8 +39,6 @@ namespace SearchTool_ServerSide.Controllers
                 SameSite = SameSiteMode.Strict, // Prevent CSRF
                 Expires = DateTime.UtcNow.AddDays(1) // Expiration time
             };
-            Log log = new Log { UserId = int.Parse(tokens.Value.userId) };
-            var logItem = await _logRepository.Add(log);
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
 
             return Ok(new { accessToken = tokens.Value.accessToken, role = user.Role.ToString() });
@@ -85,8 +83,6 @@ namespace SearchTool_ServerSide.Controllers
                 Expires = DateTime.UtcNow.AddDays(1) // Expiration time
             };
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
-            Log log = new Log { UserId = int.Parse(tokens.Value.userId) };
-            var logItem = await _logRepository.Add(log);
             return Ok(new
             {
                 accessToken = tokens.Value.accessToken

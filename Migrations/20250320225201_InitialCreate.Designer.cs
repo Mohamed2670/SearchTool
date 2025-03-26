@@ -12,7 +12,7 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250311232301_InitialCreate")]
+    [Migration("20250320225201_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -353,6 +353,10 @@ namespace SearchTool_ServerSide.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone");
 
@@ -681,7 +685,7 @@ namespace SearchTool_ServerSide.Migrations
             modelBuilder.Entity("SearchTool_ServerSide.Models.Log", b =>
                 {
                     b.HasOne("SearchTool_ServerSide.Models.User", "User")
-                        .WithMany()
+                        .WithMany("Logs")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -794,6 +798,11 @@ namespace SearchTool_ServerSide.Migrations
             modelBuilder.Entity("SearchTool_ServerSide.Models.Specialty", b =>
                 {
                     b.Navigation("MainCompanies");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.User", b =>
+                {
+                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("ServerSide.Models.Script", b =>

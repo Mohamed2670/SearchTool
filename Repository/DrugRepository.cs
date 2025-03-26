@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using SearchTool_ServerSide.Data;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
+using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
 using SearchTool_ServerSide.Models;
 using ServerSide.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -143,6 +144,7 @@ namespace SearchTool_ServerSide.Repository
             foreach (var record in records)
             {
                 string tempNdc = record.NDC.Replace("-", ""); // Normalize NDC
+                record.Name = record.Name.ToUpper();
 
                 // **Check if Drug Exists by NDC**
                 if (existingDrugsByNdc.ContainsKey(tempNdc))
@@ -246,6 +248,10 @@ namespace SearchTool_ServerSide.Repository
 
             foreach (var record in records)
             {
+                record.Bin = record.Bin.ToUpper();
+                record.PCN = record.PCN.ToUpper();
+                record.RxGroup = record.RxGroup.ToUpper();
+                record.DrugName = record.DrugName.ToUpper();
                 if (record.Bin.Length < 6)
                 {
                     record.Bin = record.Bin.PadLeft(6, '0');
@@ -769,6 +775,9 @@ namespace SearchTool_ServerSide.Repository
                         dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
                         dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
                         dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
+                        dto.pcnId = insuranceRx.InsurancePCN.Id;
+                        dto.rxgroupId = insuranceRx.Id;
                     }
                     if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
                         dto.branchName = branch.Name;
@@ -1136,11 +1145,6 @@ namespace SearchTool_ServerSide.Repository
 
 
 
-        internal async Task<InsuranceRx> GetInsuranceDetails(string shortName)
-        {
-            var item = await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.RxGroup == shortName);
-            return item;
-        }
 
         internal async Task<ICollection<Drug>> GetDrugsByClassBranch(int classId, int branchId)
         {
@@ -1309,11 +1313,7 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
-        internal async Task<ICollection<InsuranceRx>> GetAllRxGroups()
-        {
-            var items = await _context.InsuranceRxes.ToListAsync();
-            return items;
-        }
+   
     }
     // public sealed class InsuranceMap : ClassMap<Insurance>
     // {
