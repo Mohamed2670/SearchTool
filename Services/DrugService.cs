@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using AutoMapper;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
@@ -95,10 +96,23 @@ namespace SearchTool_ServerSide.Services
         }
         internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             var items = await _drugRepository.GetAllLatestScripts();
-
+            stopwatch.Stop();
+            Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;
         }
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000)
+        {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            var items = await _drugRepository.GetAllLatestScriptsPaginated(page, pageSize);
+            stopwatch.Stop();
+            Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
+            return items;
+        }
+
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
         {
             var items = await _drugRepository.GetAllDrugs(classId);
@@ -161,12 +175,12 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetDrugsByInsurance(insruance);
             return items;
         }
-         internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
+        internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
         {
             var items = await _drugRepository.GetDrugsByPCN(pcn);
             return items;
         }
-           internal async Task<ICollection<Drug>> GetDrugsByBIN(string bin)
+        internal async Task<ICollection<Drug>> GetDrugsByBIN(string bin)
         {
             var items = await _drugRepository.GetDrugsByBIN(bin);
             return items;
@@ -187,7 +201,7 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetInsurancesPcnByBinId(binId);
             return items;
         }
-         internal async Task<ICollection<InsuranceRx>> GetInsurancesRxByPcnId(int  pcnId)
+        internal async Task<ICollection<InsuranceRx>> GetInsurancesRxByPcnId(int pcnId)
         {
             var items = await _drugRepository.GetInsurancesRxByPcnId(pcnId);
             return items;
@@ -197,7 +211,13 @@ namespace SearchTool_ServerSide.Services
 
         internal async Task<IEnumerable<Drug>> GetAll()
         {
-           var items = await _drugRepository.GetAll();
+            var items = await _drugRepository.GetAll();
+            return items;
+        }
+
+        public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
+        {
+            var items = await _drugRepository.GetLatestScriptsByMonthYear(month, year);
             return items;
         }
     }

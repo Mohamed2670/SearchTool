@@ -111,7 +111,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllLatestScripts")]
+        [HttpGet("GetAllLatestScripts"), Authorize(Policy = "Admin")]
         public async Task<IActionResult> GetAllLatestScripts()
         {
             var items = await _drugService.GetAllLatestScripts();
@@ -225,6 +225,18 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetInsurancesRxByPcnId([FromQuery] int pcnId)
         {
             var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
+            return Ok(items);
+        }
+        [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin")]
+        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize)
+        {
+            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize);
+            return Ok(items);
+        }
+        [HttpGet("GetLatestScriptsByMonthYear"), Authorize(Policy = "Admin")]
+        public async Task<IActionResult> GetLatestScriptsByMonthYear([FromQuery] int month, [FromQuery] int year)
+        {
+            var items = await _drugService.GetLatestScriptsByMonthYear(month, year);
             return Ok(items);
         }
 

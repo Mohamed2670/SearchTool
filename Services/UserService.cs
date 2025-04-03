@@ -10,7 +10,7 @@ using ServerSide;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions, BranchRepository _branchRepository)
+    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions, BranchRepository _branchRepository,LogRepository _logRepository)
     {
         internal async Task<UserReadDto> Register(UserAddDto userAddDto)
         {
@@ -39,6 +39,13 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
+            var log = new Log
+            {
+                UserId = user.Id,
+                Date = DateTime.UtcNow,
+                Action = "Login",
+            };
+            await _logRepository.Add(log);
             var accessToken = TokenGenerate(user, expiresInMinutes: 1000);
             var refreshToken = TokenGenerate(user, expiresInDays: 2);
             var userId = user.Id.ToString();
@@ -48,7 +55,7 @@ namespace SearchTool_ServerSide.Services
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)
         {
             var expirationDate = DateTime.UtcNow.AddMinutes(expiresInMinutes);
-        
+
             if (expiresInDays > 0)
             {
                 expirationDate = DateTime.UtcNow.AddDays(expiresInDays);
@@ -122,7 +129,7 @@ namespace SearchTool_ServerSide.Services
             return userReadDtos;
         }
 
-       
+
 
     }
 }

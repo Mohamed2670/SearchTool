@@ -150,6 +150,11 @@ namespace SearchTool_ServerSide.Controllers
             var users = await _userService.GetAllUser();
             return Ok(users);
         }
+        [HttpGet("Logout")]
+        public IActionResult LogOut()
+        {
+            return Ok("LogOut Success");
+        }
 
     }
 }

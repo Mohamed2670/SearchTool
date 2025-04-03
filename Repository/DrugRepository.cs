@@ -9,6 +9,7 @@ using CsvHelper.Configuration;
 using CsvHelper.Configuration.Attributes;
 using CsvHelper.TypeConversion;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using SearchTool_ServerSide.Data;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
@@ -23,10 +24,12 @@ namespace SearchTool_ServerSide.Repository
     {
         private readonly SearchToolDBContext _context;
         private readonly IMapper _mapper;
-        public DrugRepository(SearchToolDBContext context, IMapper mapper) : base(context)
+        private readonly IMemoryCache _cache;
+        public DrugRepository(SearchToolDBContext context, IMapper mapper, IMemoryCache cache) : base(context)
         {
             _context = context;
             _mapper = mapper;
+            _cache = cache;
         }
         public async Task<ICollection<Drug>> GetDrugsByName(string name)
         {
@@ -1003,6 +1006,186 @@ namespace SearchTool_ServerSide.Repository
 
             return auditData;
         }
+        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize)
+        {
+            // Use a constant cache key for the entire dataset.
+            const string cacheKey = "AllLatestScripts";
+            List<AuditReadDto> allData;
+
+            // Attempt to get the dataset from cache.
+            if (!_cache.TryGetValue(cacheKey, out allData))
+            {
+                // Cache miss: load the entire dataset from the database.
+                allData = await LoadAllLatestScriptsFromDatabaseAsync();
+
+                // Set up cache options. Adjust the expiration as necessary.
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(30));
+
+                // Store the full dataset in cache.
+                _cache.Set(cacheKey, allData, cacheOptions);
+            }
+
+            // Paginate the data from the cache.
+            var pagedData = allData
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return pagedData;
+        }
+        public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
+        {
+            const string cacheKey = "AllLatestScripts";
+            List<AuditReadDto> allData;
+
+            // Try to retrieve the full dataset from cache
+            if (!_cache.TryGetValue(cacheKey, out allData))
+            {
+                // Cache miss: Load the full dataset from the database
+                allData = await LoadAllLatestScriptsFromDatabaseAsync();
+
+                // Configure cache options (adjust expiration as necessary)
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(30));
+
+                // Store the full dataset in cache
+                _cache.Set(cacheKey, allData, cacheOptions);
+            }
+
+            // Filter the cached data for the specified month and year
+            var filteredData = allData
+                .Where(x => x.Date.Month == month && x.Date.Year == year)
+                .ToList();
+
+            return filteredData;
+        }
+
+        private async Task<List<AuditReadDto>> LoadAllLatestScriptsFromDatabaseAsync()
+        {
+            var auditData = await (
+                from script in _context.Scripts
+                join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
+                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id
+                join classItem in _context.DrugClasses on scriptItem.DrugClassId equals classItem.Id
+                join branch in _context.Branches on script.BranchId equals branch.Id
+                join classInsurance in _context.ClassInsurances
+                    on new { InsuranceId = insurance.Id, ClassId = classItem.Id, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch.Id }
+                    equals new { classInsurance.InsuranceId, classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, classInsurance.BranchId }
+                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id
+                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id
+                join user in _context.Users on script.UserId equals user.Id into userGroup
+                from user in userGroup.DefaultIfEmpty()
+                join prescriber in _context.Users on scriptItem.PrescriberId equals prescriber.Id into prescriberGroup
+                from prescriber in prescriberGroup.DefaultIfEmpty()
+                let prevMonth = script.Date.AddMonths(-1)
+                let bestNetEntryPrevMonth = _context.ClassInsurances
+                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                                 ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
+                let bestNetEntryCurrentMonth = _context.ClassInsurances
+                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                                 ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
+                let bestNetEntry = bestNetEntryPrevMonth ?? bestNetEntryCurrentMonth
+                select new AuditReadDto
+                {
+                    Date = script.Date,
+                    ScriptCode = script.ScriptCode,
+                    RxNumber = scriptItem.RxNumber,
+                    User = user != null ? user.Name : "Unknown",
+                    DrugName = scriptDrug.Name,
+                    NDCCode = scriptDrug.NDC,
+                    DrugId = scriptDrug.Id,
+                    HighstDrugName = bestDrug.Name,
+                    HighstDrugNDC = bestDrug.NDC,
+                    HighstDrugId = bestDrug.Id,
+                    BranchCode = branch.Name,
+                    Insurance = insurance.RxGroup,
+                    PF = scriptItem.PF,
+                    Prescriber = prescriber != null ? prescriber.Name : "Unknown",
+                    Quantity = scriptItem.Quantity,
+                    AcquisitionCost = scriptItem.AcquisitionCost,
+                    Discount = scriptItem.Discount,
+                    InsurancePayment = scriptItem.InsurancePayment,
+                    PatientPayment = scriptItem.PatientPayment,
+                    NetProfit = scriptItem.NetProfit,
+                    DrugClass = classItem.Name,
+                    HighstNet = bestNetEntry.BestNet,
+                    HighstScriptCode = bestNetEntry.ScriptCode,
+                    HighstScriptDate = bestNetEntry.ScriptDateTime
+                }).ToListAsync();
+
+            return auditData;
+        }
+        // internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000)
+        // {
+        //     int skipCount = (page - 1) * pageSize;
+
+        //     var auditData = await (
+        //         from script in _context.Scripts
+        //         join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
+        //         join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id
+        //         join classItem in _context.DrugClasses on scriptItem.DrugClassId equals classItem.Id
+        //         join branch in _context.Branches on script.BranchId equals branch.Id
+        //         join classInsurance in _context.ClassInsurances
+        //             on new { InsuranceId = insurance.Id, ClassId = classItem.Id, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch.Id }
+        //             equals new { classInsurance.InsuranceId, classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, classInsurance.BranchId }
+        //         join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id // Drug from script
+        //         join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id // Best drug
+        //         join user in _context.Users on script.UserId equals user.Id into userGroup
+        //         from user in userGroup.DefaultIfEmpty() // Allow nullable users
+        //         join prescriber in _context.Users on scriptItem.PrescriberId equals prescriber.Id into prescriberGroup
+        //         from prescriber in prescriberGroup.DefaultIfEmpty() // Allow nullable prescribers
+        //         let prevMonth = script.Date.AddMonths(-1)
+        //         let bestNetEntryPrevMonth = _context.ClassInsurances
+        //             .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+        //                          ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
+        //             .OrderByDescending(ci => ci.BestNet)
+        //             .FirstOrDefault()
+        //         let bestNetEntryCurrentMonth = _context.ClassInsurances
+        //             .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+        //                          ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
+        //             .OrderByDescending(ci => ci.BestNet)
+        //             .FirstOrDefault()
+        //         let bestNetEntry = bestNetEntryPrevMonth ?? bestNetEntryCurrentMonth // Use previous month if available, otherwise fallback to current month
+        //         select new AuditReadDto
+        //         {
+        //             Date = script.Date,
+        //             ScriptCode = script.ScriptCode,
+        //             RxNumber = scriptItem.RxNumber,
+        //             User = user != null ? user.Name : "Unknown",
+
+        //             // Drug from script
+        //             DrugName = scriptDrug.Name,
+        //             NDCCode = scriptDrug.NDC,
+        //             DrugId = scriptDrug.Id,
+
+        //             // Best Drug
+        //             HighstDrugName = bestDrug.Name,
+        //             HighstDrugNDC = bestDrug.NDC,
+        //             HighstDrugId = bestDrug.Id,
+        //             BranchCode = branch.Name,
+        //             Insurance = insurance.RxGroup,
+        //             PF = scriptItem.PF,
+        //             Prescriber = prescriber != null ? prescriber.Name : "Unknown",
+        //             Quantity = scriptItem.Quantity,
+        //             AcquisitionCost = scriptItem.AcquisitionCost,
+        //             Discount = scriptItem.Discount,
+        //             InsurancePayment = scriptItem.InsurancePayment,
+        //             PatientPayment = scriptItem.PatientPayment,
+        //             NetProfit = scriptItem.NetProfit,
+        //             DrugClass = classItem.Name,
+        //             HighstNet = bestNetEntry.BestNet,
+        //             HighstScriptCode = bestNetEntry.ScriptCode,
+        //             HighstScriptDate = bestNetEntry.ScriptDateTime
+        //         }
+        //     ).Skip(skipCount).Take(pageSize).ToListAsync();
+
+        //     return auditData;
+        // }
 
 
 
@@ -1313,7 +1496,7 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
-   
+
     }
     // public sealed class InsuranceMap : ClassMap<Insurance>
     // {
