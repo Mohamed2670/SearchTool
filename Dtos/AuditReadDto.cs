@@ -9,6 +9,7 @@ namespace SearchTool_ServerSide.Dtos
         public string DrugName { get; set; }
         public int DrugId { get; set; }
         public string Insurance { get; set; }
+        public int InsuranceId { get; set; }
         public string PF { get; set; }
         public string Prescriber { get; set; }
         public string Quantity { get; set; }

@@ -3,6 +3,7 @@ using AutoMapper;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
 using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
+using SearchTool_ServerSide.Dtos.ScritpsDto;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
 using ServerSide.Models;
@@ -219,6 +220,10 @@ namespace SearchTool_ServerSide.Services
         {
             var items = await _drugRepository.GetLatestScriptsByMonthYear(month, year);
             return items;
+        }
+        public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
+        {
+            await _drugRepository.AddScripts(scriptAddDtos);
         }
     }
 }

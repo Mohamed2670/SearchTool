@@ -44,7 +44,7 @@ namespace SearchTool_ServerSide.Middleware
 
             // Process the request first
             await _next(context);
-            Console.WriteLine("here");
+            // Console.WriteLine("here");
             // Log only for authenticated users
             if (userId.HasValue)
             {

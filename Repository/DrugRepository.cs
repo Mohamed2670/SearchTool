@@ -14,6 +14,7 @@ using SearchTool_ServerSide.Data;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
 using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
+using SearchTool_ServerSide.Dtos.ScritpsDto;
 using SearchTool_ServerSide.Models;
 using ServerSide.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -206,6 +207,420 @@ namespace SearchTool_ServerSide.Repository
                 await context.Drugs.AddRangeAsync(newDrugs);
                 await context.SaveChangesAsync();
             }
+        }
+        public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
+        {
+
+
+            // Keep only records that yield a valid Drug.
+            var processedRecords = new List<ScriptAddDto>();
+
+            // ========================================================
+            // PHASE 1: Process Principal Entities – Insurances & Drugs
+            // ========================================================
+            // Preload existing Insurances, Drugs, and DrugClasses.
+            var insuranceDict = await _context.Insurances.ToDictionaryAsync(i => i.Bin);
+            var insurancePCNDict = await _context.InsurancePCNs.ToDictionaryAsync(i => i.PCN);
+            var insuranceRxDict = await _context.InsuranceRxes.ToDictionaryAsync(i => i.RxGroup);
+            var drugsFromDb = await _context.Drugs.ToListAsync();
+            // Key by normalized NDC.
+            var drugDict = drugsFromDb.ToDictionary(d => d.NDC);
+            // Key by drug name (using grouping to avoid duplicate key issues)
+            var drugByNameDict = drugsFromDb
+                                    .GroupBy(d => d.Name)
+                                    .ToDictionary(g => g.Key, g => g.First());
+            var drugClassDict = await _context.DrugClasses.ToDictionaryAsync(dc => dc.Id);
+            var newInsurances = new List<Insurance>();
+            var newInsurancePCNs = new List<InsurancePCN>();
+            var newInsuranceRxes = new List<InsuranceRx>();
+
+            var newDrugs = new List<Drug>();
+            int batchSize = 1000, countPhase1 = 0;
+
+            foreach (var record in scriptAddDtos)
+            {
+                record.Bin = record.Bin.ToUpper();
+                record.PCN = record.PCN.ToUpper();
+                record.RxGroup = record.RxGroup.ToUpper();
+                record.DrugName = record.DrugName.ToUpper();
+                if (record.Bin.Length < 6)
+                {
+                    record.Bin = record.Bin.PadLeft(6, '0');
+                }
+                if (record.PCN.Length < 1)
+                {
+                    record.PCN = record.Bin + "(Other)";
+                }
+                if (record.RxGroup.Length < 1)
+                {
+
+                    record.RxGroup = record.PCN + "(Other)";
+
+                }
+                record.RxGroup = record.RxGroup.Trim();
+                // Normalize NDC.
+                record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
+                // ---- Process Insurance
+                if (!insuranceDict.ContainsKey(record.Bin))
+                {
+                    var ins = new Insurance { Bin = record.Bin };
+                    newInsurances.Add(ins);
+                    insuranceDict[record.Bin] = ins; // will have generated Id after saving
+                }
+                // ---- Process Drug
+                Drug drug = null;
+                if (!drugDict.TryGetValue(record.NDCCode, out drug))
+                {
+                    if (drugByNameDict.TryGetValue(record.DrugName, out var tempDrug))
+                    {
+                        drug = new Drug
+                        {
+                            Name = record.DrugName,
+                            NDC = record.NDCCode,
+                            Form = tempDrug.Form,
+                            Strength = tempDrug.Strength,
+                            DrugClassId = tempDrug.DrugClassId,
+                            ACQ = record.AcquisitionCost,
+                            AWP = 0,
+                            Rxcui = tempDrug.Rxcui
+                        };
+                        newDrugs.Add(drug);
+                        drugDict[record.NDCCode] = drug;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Skipping record: Drug with NDC {record.NDCCode} not found.");
+                        continue;
+                    }
+                }
+                processedRecords.Add(record);
+                countPhase1++;
+                if (countPhase1 % batchSize == 0)
+                {
+                    if (newInsurances.Any())
+                    {
+                        _context.Insurances.AddRange(newInsurances);
+                        await _context.SaveChangesAsync();
+                        newInsurances.Clear();
+                    }
+                    if (newDrugs.Any())
+                    {
+                        _context.Drugs.AddRange(newDrugs);
+                        await _context.SaveChangesAsync();
+                        newDrugs.Clear();
+                    }
+                }
+            }
+            if (newInsurances.Any())
+            {
+                _context.Insurances.AddRange(newInsurances);
+                await _context.SaveChangesAsync();
+            }
+            if (newDrugs.Any())
+            {
+                _context.Drugs.AddRange(newDrugs);
+                await _context.SaveChangesAsync();
+            }
+
+            // ========================================================
+            // PHASE 2: Process Intermediate Dependents – DrugInsurance & ClassInsurance
+            // ========================================================
+            // ========================================================
+            // PHASE 2: Process Intermediate Dependents – DrugInsurance & ClassInsurance
+            // ========================================================
+
+            // --- Load existing DrugInsurance records and build a dictionary keyed by (InsuranceId, DrugId)
+            var existingDrugInsurances = await _context.DrugInsurances.ToListAsync();
+            var diDict = existingDrugInsurances
+                .ToDictionary(di => (di.InsuranceId, di.DrugId, di.BranchId));
+            var branchDict = await _context.Branches.ToDictionaryAsync(b => b.Code);
+
+            var existingClassInsurances = await _context.ClassInsurances.ToListAsync();
+            var ciDict = existingClassInsurances
+                .ToDictionary(ci => (ci.InsuranceId, ci.ClassId, ci.Date.Year, ci.Date.Month, ci.BranchId));
+            var drugBranchDict = await _context.DrugBranches.ToDictionaryAsync(g => (g.BranchId, g.DrugId));
+            // Lists for new inserts.
+            var newDrugInsurances = new List<DrugInsurance>();
+            var newClassInsurances = new List<ClassInsurance>();
+            foreach (var record in processedRecords)
+            {
+                if (!insuranceDict.TryGetValue(record.Bin, out var insurance))
+                    continue;
+
+                if (!insurancePCNDict.ContainsKey(record.PCN))
+                {
+                    var ins = new InsurancePCN { PCN = record.PCN, InsuranceId = insurance.Id };
+                    newInsurancePCNs.Add(ins);
+                    insurancePCNDict[record.PCN] = ins;
+                }
+            }
+            if (newInsurancePCNs.Any())
+            {
+                _context.InsurancePCNs.AddRange(newInsurancePCNs);
+                await _context.SaveChangesAsync();
+            }
+            foreach (var record in processedRecords)
+            {
+                if (!insurancePCNDict.TryGetValue(record.PCN, out var insurancePCN))
+                    continue;
+
+                if (!insuranceRxDict.ContainsKey(record.RxGroup))
+                {
+                    var ins = new InsuranceRx { RxGroup = record.RxGroup, InsurancePCNId = insurancePCN.Id };
+                    newInsuranceRxes.Add(ins);
+                    insuranceRxDict[record.RxGroup] = ins;
+                }
+            }
+            if (newInsuranceRxes.Any())
+            {
+                _context.InsuranceRxes.AddRange(newInsuranceRxes);
+                await _context.SaveChangesAsync();
+            }
+            foreach (var record in processedRecords)
+            {
+
+                // Normalize NDC and parse the date.
+                record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
+                DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture)
+                                                    .ToUniversalTime();
+                decimal netValue = record.PatientPayment + record.InsurancePayment - record.AcquisitionCost;
+                // Use the first day of the month for ClassInsurance.
+                DateTime yearMonth = new DateTime(recordDate.Year, recordDate.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                // Look up principal entities (guaranteed from Phase 1).
+                if (!insuranceRxDict.TryGetValue(record.RxGroup, out var insuranceItem))
+                {
+                    Console.WriteLine("hoooooooooooooo");
+                    continue;
+                }
+                if (!drugDict.TryGetValue(record.NDCCode, out var drug))
+                    continue;
+                if (!drugClassDict.TryGetValue(drug.DrugClassId, out var classItem))
+                    continue;
+
+                // -----------------------
+                // Merge DrugInsurance
+                // ------------------
+                if (!branchDict.TryGetValue(record.Branch, out var branch))
+                    continue;
+
+                var diKey = (insuranceItem.Id, drug.Id, branch.Id);
+                if (diDict.TryGetValue(diKey, out var existingDI))
+                {
+                    // If the existing record is older, update it.
+                    if (existingDI.date < recordDate)
+                    {
+                        existingDI.Net = netValue;
+                        existingDI.AcquisitionCost = record.AcquisitionCost;
+                        existingDI.Discount = record.Discount;
+                        existingDI.InsurancePayment = record.InsurancePayment;
+                        existingDI.PatientPayment = record.PatientPayment;
+                        existingDI.date = recordDate;
+                        // No need to add to context as it's already tracked.
+                    }
+                }
+                else
+                {
+                    var newDI = new DrugInsurance
+                    {
+                        InsuranceId = insuranceItem.Id,
+                        DrugId = drug.Id,
+                        BranchId = branch.Id,
+                        NDCCode = record.NDCCode,
+                        Net = netValue,
+                        DrugClassId = classItem.Id,
+                        date = recordDate,
+                        Prescriber = record.Prescriber,
+                        Quantity = record.Quantity,
+                        AcquisitionCost = record.AcquisitionCost,
+                        Discount = record.Discount,
+                        InsurancePayment = record.InsurancePayment,
+                        PatientPayment = record.PatientPayment,
+                    };
+                    newDrugInsurances.Add(newDI);
+                    diDict.Add(diKey, newDI);
+                }
+
+                // -----------------------
+                // Merge ClassInsurance
+                // -----------------------
+
+                var ciKey = (insuranceItem.Id, classItem.Id, recordDate.Year, recordDate.Month, branch.Id);
+                if (ciDict.TryGetValue(ciKey, out var existingCI))
+                {
+                    // Update if this record has a higher net value.
+                    if (netValue > existingCI.BestNet)
+                    {
+                        existingCI.BestNet = netValue;
+                        existingCI.DrugId = drug.Id;
+                        existingCI.ScriptCode = record.Script;
+                        existingCI.ScriptDateTime = recordDate;
+                    }
+                }
+                else
+                {
+                    var newCI = new ClassInsurance
+                    {
+                        InsuranceId = insuranceItem.Id,
+                        InsuranceName = insuranceItem.RxGroup,
+                        ClassId = classItem.Id,
+                        DrugId = drug.Id,
+                        BranchId = branch.Id,
+                        Date = yearMonth,
+                        ClassName = classItem.Name,
+                        ScriptDateTime = yearMonth,
+                        ScriptCode = record.Script,
+                        BestNet = netValue
+                    };
+                    newClassInsurances.Add(newCI);
+                    ciDict.Add(ciKey, newCI);
+                }
+            }
+
+            // Now add only the new DrugInsurance and ClassInsurance records.
+            _context.DrugInsurances.AddRange(newDrugInsurances);
+            await _context.SaveChangesAsync();
+
+            _context.ClassInsurances.AddRange(newClassInsurances);
+            await _context.SaveChangesAsync();
+
+
+            // ========================================================
+            // PHASE 3: Process Users and Scripts
+            // ========================================================
+            // Preload Users, Branches, and Scripts.
+            var userDict = await _context.Users.ToDictionaryAsync(u => u.ShortName);
+            var scriptDict = await _context.Scripts.ToDictionaryAsync(s => s.ScriptCode);
+
+            var newUsers = new List<User>();
+            var newScripts = new List<Script>();
+            var newDrugBranches = new List<DrugBranch>();
+            // Process missing Users (record owner and prescriber).
+            foreach (var record in processedRecords)
+            {
+                if (!branchDict.TryGetValue(record.Branch, out var branch))
+                    continue;
+                if (!drugDict.TryGetValue(record.NDCCode, out var drug))
+                    continue;
+                var tempkey = (branch.Id, drug.Id);
+                if (!drugBranchDict.TryGetValue(tempkey, out var drugBranch))
+                {
+                    var newDrugBranch = new DrugBranch
+                    {
+                        BranchId = branch.Id,
+                        DrugId = drug.Id
+                    };
+                    newDrugBranches.Add(newDrugBranch);
+                    drugBranchDict.Add(tempkey, newDrugBranch);
+                }
+                if (!userDict.ContainsKey(record.User))
+                {
+                    var newUser = new User { ShortName = record.User, Name = record.User, Email = $"{record.User}@pharmacy.com", Password = "DefaultPass123", BranchId = branch.Id };
+                    newUsers.Add(newUser);
+                    userDict[record.User] = newUser;
+                }
+                if (!userDict.ContainsKey(record.Prescriber))
+                {
+                    var newPrescriber = new User { ShortName = record.Prescriber, Name = record.Prescriber, Email = $"{record.Prescriber}@pharmacy.com", Password = "DefaultPass123", BranchId = branch.Id };
+                    newUsers.Add(newPrescriber);
+                    userDict[record.Prescriber] = newPrescriber;
+                }
+            }
+            if (newUsers.Any())
+            {
+                _context.Users.AddRange(newUsers);
+                await _context.SaveChangesAsync();
+            }
+            if (newDrugBranches.Any())
+            {
+                _context.DrugBranches.AddRange(newDrugBranches);
+                await _context.SaveChangesAsync();
+            }
+
+            // Process Scripts.
+            foreach (var record in processedRecords)
+            {
+                DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture)
+                                                .ToUniversalTime();
+                if (!scriptDict.ContainsKey(record.Script))
+                {
+                    if (!branchDict.TryGetValue(record.Branch, out var branch))
+                        continue;
+                    // Use the record owner from userDict.
+                    var owner = userDict[record.User];
+                    var newScript = new Script
+                    {
+                        Date = recordDate,
+                        ScriptCode = record.Script,
+                        BranchId = branch.Id,
+                        UserId = owner.Id
+                    };
+                    newScripts.Add(newScript);
+                    scriptDict[record.Script] = newScript;
+                }
+            }
+            if (newScripts.Any())
+            {
+                _context.Scripts.AddRange(newScripts);
+                await _context.SaveChangesAsync();
+            }
+
+            // ========================================================
+            // PHASE 4: Process ScriptItems
+            // ========================================================
+            // Build a temporary dictionary keyed by (ScriptId, DrugId)
+            var tempScriptItems = new Dictionary<(int scriptId, int drugId), ScriptItem>();
+            foreach (var record in processedRecords)
+            {
+                record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
+                DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture)
+                                                .ToUniversalTime();
+
+                if (!insuranceRxDict.TryGetValue(record.RxGroup, out var insurance2))
+                    continue;
+                if (!drugDict.TryGetValue(record.NDCCode, out var drug2))
+                    continue;
+                if (!drugClassDict.TryGetValue(drug2.DrugClassId, out var classItem2))
+                    continue;
+                if (!scriptDict.TryGetValue(record.Script, out var script))
+                    continue;
+
+                var siKey = (script.Id, drug2.Id);
+                if (tempScriptItems.TryGetValue(siKey, out var existingSI))
+                {
+                    if (script.Date < recordDate)
+                    {
+                        existingSI.AcquisitionCost = record.AcquisitionCost;
+                        existingSI.Discount = record.Discount;
+                        existingSI.InsurancePayment = record.InsurancePayment;
+                        existingSI.PatientPayment = record.PatientPayment;
+                    }
+                }
+                else
+                {
+                    if (!userDict.TryGetValue(record.Prescriber, out var prescriber))
+                        continue;
+                    var newSI = new ScriptItem
+                    {
+                        ScriptId = script.Id,
+                        DrugId = drug2.Id,
+                        InsuranceId = insurance2.Id,
+                        DrugClassId = classItem2.Id,
+                        RxNumber = record.RxNumber,
+                        PrescriberId = prescriber.Id,
+                        PF = record.PF,
+                        Quantity = record.Quantity,
+                        AcquisitionCost = record.AcquisitionCost,
+                        Discount = record.Discount,
+                        InsurancePayment = record.InsurancePayment,
+                        PatientPayment = record.PatientPayment,
+                        NDCCode = record.NDCCode
+                    };
+                    tempScriptItems.Add(siKey, newSI);
+                }
+            }
+            _context.ScriptItems.AddRange(tempScriptItems.Values);
+            await _context.SaveChangesAsync();
         }
 
 
@@ -983,7 +1398,7 @@ namespace SearchTool_ServerSide.Repository
                     DrugName = scriptDrug.Name,
                     NDCCode = scriptDrug.NDC,
                     DrugId = scriptDrug.Id,
-
+                    InsuranceId = insurance.Id,
                     // Best Drug
                     HighstDrugName = bestDrug.Name,
                     HighstDrugNDC = bestDrug.NDC,
@@ -1020,7 +1435,7 @@ namespace SearchTool_ServerSide.Repository
 
                 // Set up cache options. Adjust the expiration as necessary.
                 var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(30));
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(120));
 
                 // Store the full dataset in cache.
                 _cache.Set(cacheKey, allData, cacheOptions);
@@ -1047,7 +1462,7 @@ namespace SearchTool_ServerSide.Repository
 
                 // Configure cache options (adjust expiration as necessary)
                 var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(30));
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(120));
 
                 // Store the full dataset in cache
                 _cache.Set(cacheKey, allData, cacheOptions);
@@ -1104,6 +1519,8 @@ namespace SearchTool_ServerSide.Repository
                     HighstDrugId = bestDrug.Id,
                     BranchCode = branch.Name,
                     Insurance = insurance.RxGroup,
+                    InsuranceId = insurance.Id,
+
                     PF = scriptItem.PF,
                     Prescriber = prescriber != null ? prescriber.Name : "Unknown",
                     Quantity = scriptItem.Quantity,

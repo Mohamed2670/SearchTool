@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using SearchTool_ServerSide.Authentication;
+using SearchTool_ServerSide.Dtos.ScritpsDto;
 using SearchTool_ServerSide.Services;
+using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Controllers
 {
@@ -111,7 +114,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllLatestScripts"), Authorize(Policy = "Admin")]
+        [HttpGet("GetAllLatestScripts"), AllowAnonymous]
         public async Task<IActionResult> GetAllLatestScripts()
         {
             var items = await _drugService.GetAllLatestScripts();
@@ -227,7 +230,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
             return Ok(items);
         }
-        [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin")]
+        [HttpGet("GetAllLatestScriptsPaginated"), AllowAnonymous]
         public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize);
@@ -238,6 +241,12 @@ namespace SearchTool_ServerSide.Controllers
         {
             var items = await _drugService.GetLatestScriptsByMonthYear(month, year);
             return Ok(items);
+        }
+        [HttpPost("AddScritps"),AllowAnonymous]
+        public async Task<IActionResult> AddScritps(ICollection<ScriptAddDto> scriptAddDtos)
+        {
+            await _drugService.AddScripts(scriptAddDtos);
+            return Ok("Items Added Succesfuly");
         }
 
     }
