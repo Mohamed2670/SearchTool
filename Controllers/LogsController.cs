@@ -5,7 +5,7 @@ using SearchTool_ServerSide.Services;
 
 namespace SearchTool_ServerSide.Controllers
 {
-    [ApiController, Route("Logs")]
+    [ApiController, Route("Logs"),Authorize]
     public class LogsContorller : ControllerBase
     {
         [HttpGet("GetLogs"),Authorize(Policy ="Admin")]

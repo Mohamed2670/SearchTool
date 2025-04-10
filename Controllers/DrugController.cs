@@ -8,7 +8,7 @@ using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Controllers
 {
-    [ApiController, Route("drug"), Authorize(Policy = "Pharmacist")]
+    [ApiController, Route("drug"), Authorize]
     public class DrugController(DrugService _drugService, UserAccessToken userAccessToken) : ControllerBase
     {
         [HttpGet, AllowAnonymous]
@@ -230,7 +230,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetInsurancesRxByPcnId(pcnId);
             return Ok(items);
         }
-        [HttpGet("GetAllLatestScriptsPaginated"), AllowAnonymous]
+        [HttpGet("GetAllLatestScriptsPaginated"),  Authorize(Policy = "Admin"),Authorize]
         public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize);

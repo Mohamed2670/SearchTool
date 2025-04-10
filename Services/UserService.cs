@@ -46,11 +46,11 @@ namespace SearchTool_ServerSide.Services
                 Action = "Login",
             };
             await _logRepository.Add(log);
-            var accessToken = TokenGenerate(user, expiresInMinutes: 120);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 480);
             var refreshToken = TokenGenerate(user, expiresInDays: 1);
             var userId = user.Id.ToString();
             var branchId = user.BranchId.ToString();
-            return (accessToken, refreshToken, userId, branchId);
+            return (accessToken, accessToken, userId, branchId);
         }
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)
         {
@@ -98,10 +98,10 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
-            var accessToken = TokenGenerate(user, expiresInMinutes: 1000);
-            var refreshToken = TokenGenerate(user, expiresInDays: 2);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 480);
+            var refreshToken = TokenGenerate(user, expiresInDays: 1);
             var userId = user.Id.ToString();
-            return (accessToken, refreshToken, userId);
+            return (accessToken, accessToken, userId);
         }
 
         internal async Task<UserReadDto> UserUpdate(int userId, UserUpdateDto userUpdateDto)

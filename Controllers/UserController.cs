@@ -89,7 +89,7 @@ namespace SearchTool_ServerSide.Controllers
             });
         }
 
-        [HttpGet("UserById"), Authorize(Policy = "Pharmacist")]
+        [HttpGet("UserById"), Authorize(Policy = "Pharmacist"),Authorize]
         public async Task<IActionResult> GetUserById()
         {
             var userData = userAccessToken.tokenData();
