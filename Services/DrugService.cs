@@ -225,5 +225,11 @@ namespace SearchTool_ServerSide.Services
         {
             await _drugRepository.AddScripts(scriptAddDtos);
         }
+
+        internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
+        {
+            var items = await _drugRepository.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
+            return items;
+        }
     }
 }

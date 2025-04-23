@@ -12,7 +12,7 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    [Migration("20250320225201_InitialCreate")]
+    [Migration("20250417221227_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

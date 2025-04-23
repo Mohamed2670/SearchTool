@@ -61,6 +61,7 @@ namespace SearchTool_ServerSide.Controllers
             }
 
             // Validate and extract user from refresh token
+            Console.WriteLine("refresh token: " + refreshToken);
             var user = userAccessToken.ValidateRefreshToken(refreshToken);
             if (user == null)
             {

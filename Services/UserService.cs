@@ -10,7 +10,7 @@ using ServerSide;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions, BranchRepository _branchRepository,LogRepository _logRepository)
+    public class UserSevice(UserRepository _userRepository, IMapper _mapper, JwtOptions jwtOptions, BranchRepository _branchRepository, LogRepository _logRepository)
     {
         internal async Task<UserReadDto> Register(UserAddDto userAddDto)
         {
@@ -20,6 +20,7 @@ namespace SearchTool_ServerSide.Services
             var userReadDto = _mapper.Map<UserReadDto>(user);
             return userReadDto;
         }
+
         internal async Task<UserReadDto> GetUserByEmail(string email)
         {
             var user = await _userRepository.GetUserByEmail(email);
@@ -46,12 +47,15 @@ namespace SearchTool_ServerSide.Services
                 Action = "Login",
             };
             await _logRepository.Add(log);
-            var accessToken = TokenGenerate(user, expiresInMinutes: 480);
-            var refreshToken = TokenGenerate(user, expiresInDays: 1);
+
+            var accessToken = TokenGenerate(user, expiresInMinutes: 15);
+            // Refresh token now valid for 8 hours
+            var refreshToken = TokenGenerate(user, expiresInMinutes: 480);
             var userId = user.Id.ToString();
             var branchId = user.BranchId.ToString();
-            return (accessToken, accessToken, userId, branchId);
+            return (accessToken, refreshToken, userId, branchId);
         }
+
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)
         {
             var expirationDate = DateTime.UtcNow.AddMinutes(expiresInMinutes);
@@ -65,22 +69,23 @@ namespace SearchTool_ServerSide.Services
             {
                 Issuer = jwtOptions.Issuer,
                 Audience = jwtOptions.Audience,
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-                SecurityAlgorithms.HmacSha256),
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+                    SecurityAlgorithms.HmacSha256),
                 Subject = new ClaimsIdentity(new Claim[]
                 {
-                    new(ClaimTypes.NameIdentifier,user.Id.ToString()),
-                    new(ClaimTypes.Email,user.Email),
-                    new(ClaimTypes.Role,user.Role.ToString()),
-                    new("BranchId",user.BranchId.ToString())
+                    new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new(ClaimTypes.Email, user.Email),
+                    new(ClaimTypes.Role, user.Role.ToString()),
+                    new("BranchId", user.BranchId.ToString())
                 }),
                 Expires = expirationDate
-
             };
             var securityToken = tokenHandler.CreateToken(tokenDescriptor);
             var accessToken = tokenHandler.WriteToken(securityToken);
             return accessToken;
         }
+
         public async Task<UserReadDto?> GetUserById(int id)
         {
             var user = await _userRepository.GetById(id);
@@ -90,6 +95,7 @@ namespace SearchTool_ServerSide.Services
             userReadDto.BranchName = branch.Name;
             return userReadDto;
         }
+
         public async Task<(string accessToken, string refreshToken, string userId)?> Refresh(string email)
         {
             Console.WriteLine("email : " + email);
@@ -98,10 +104,12 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
-            var accessToken = TokenGenerate(user, expiresInMinutes: 480);
-            var refreshToken = TokenGenerate(user, expiresInDays: 1);
+
+            var accessToken = TokenGenerate(user, expiresInMinutes: 15);
+            // Refresh token now valid for 8 hours
+            var refreshToken = TokenGenerate(user, expiresInMinutes: 480);
             var userId = user.Id.ToString();
-            return (accessToken, accessToken, userId);
+            return (accessToken, refreshToken, userId);
         }
 
         internal async Task<UserReadDto> UserUpdate(int userId, UserUpdateDto userUpdateDto)
@@ -128,8 +136,5 @@ namespace SearchTool_ServerSide.Services
             var userReadDtos = _mapper.Map<ICollection<UserReadDto>>(users);
             return userReadDtos;
         }
-
-
-
     }
 }

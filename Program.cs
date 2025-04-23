@@ -67,6 +67,7 @@ var allowedOrigins = new List<string>
     "https://pharmacy.medisearchtool.com",
     "http://localhost:5173",
         "http://localhost:5174",
+        "http://127.0.0.1:8000",
 
 };
 
@@ -93,6 +94,6 @@ app.UseHttpsRedirection();
 app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<UserLogsMiddleware>();    
+app.UseMiddleware<UserLogsMiddleware>();
 app.MapControllers();
 app.Run();

@@ -1094,6 +1094,69 @@ namespace SearchTool_ServerSide.Repository
             var item = await _context.Drugs.FirstOrDefaultAsync(x => x.NDC == ndc);
             return item;
         }
+        internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int insuranceId)
+        {
+            var query = from di in _context.ClassInsurances
+                        join irx in _context.InsuranceRxes on di.InsuranceId equals irx.Id
+                        join ipcn in _context.InsurancePCNs on irx.InsurancePCNId equals ipcn.Id
+                        join ins in _context.Insurances on ipcn.InsuranceId equals ins.Id
+                        join dr in _context.Drugs on di.DrugId equals dr.Id
+                        where di.ClassId == classId
+                              && di.InsuranceId == insuranceId
+                              && di.Date == _context.ClassInsurances
+                                                .Where(x => x.ClassId == classId && x.InsuranceId == insuranceId)
+                                                .Max(x => x.Date) // Get the newest date
+                        select new
+                        {
+                            ClassId = dr.DrugClassId,
+                            Date = di.Date,
+                            BranchId = di.BranchId,
+                            ClassName = di.ClassName,
+                            DrugId = di.DrugId,
+                            ScriptCode = di.ScriptCode,
+                            ScriptDateTime = di.ScriptDateTime,
+                            DrugName = dr.Name,
+                            DrugClass = dr.DrugClass.Name,
+                            BranchName = di.Branch.Name,
+                            NDC = dr.NDC,
+                            BinId = ipcn.InsuranceId,
+                            PcnId = ipcn.Id,
+                            RxGroupId = irx.Id,
+                            DrugInsurance = di,
+                            Bin = ins.Bin,
+                            BinFullName = ins.Name,
+                            RxGroup = irx.RxGroup,
+                            PCN = ipcn.PCN,
+                            Net = di.BestNet
+                        };
+
+            var result = await query.FirstOrDefaultAsync();
+            if (result == null)
+                return null;
+            Console.WriteLine("result : ", result.Net);
+
+            DrugBestAlternativeReadDto dto = new DrugBestAlternativeReadDto();
+            dto.ClassId = result.ClassId;
+            dto.Date = result.Date;
+            dto.BranchId = result.BranchId;
+            dto.ClassName = result.ClassName;
+            dto.BestNet = result.Net;
+            dto.DrugId = result.DrugId;
+            dto.ScriptCode = result.ScriptCode;
+            dto.ScriptDateTime = result.ScriptDateTime;
+            dto.DrugName = result.DrugName;
+            dto.DrugClass = result.DrugClass;
+            dto.BranchName = result.BranchName;
+            dto.NDC = result.NDC;
+            dto.BinId = result.BinId;
+            dto.PcnId = result.PcnId;
+            dto.RxGroupId = result.RxGroupId;
+            dto.BinFullName = result.BinFullName;
+            dto.Bin = result.Bin;
+            dto.Pcn = result.PCN;
+            dto.Rxgroup = result.RxGroup;
+            return dto;
+        }
 
         internal async Task<DrugsAlternativesReadDto> GetDetails(string ndc, int insuranceId)
         {
@@ -1101,7 +1164,11 @@ namespace SearchTool_ServerSide.Repository
                         join irx in _context.InsuranceRxes on di.InsuranceId equals irx.Id
                         join ipcn in _context.InsurancePCNs on irx.InsurancePCNId equals ipcn.Id
                         join ins in _context.Insurances on ipcn.InsuranceId equals ins.Id
-                        where di.NDCCode == ndc && di.InsuranceId == insuranceId
+                        where di.NDCCode == ndc
+                              && di.InsuranceId == insuranceId
+                              && di.date == _context.DrugInsurances
+                                                .Where(x => x.NDCCode == ndc && x.InsuranceId == insuranceId)
+                                                .Max(x => x.date) // Get the newest date
                         select new
                         {
                             DrugInsurance = di,

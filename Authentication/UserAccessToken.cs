@@ -70,7 +70,6 @@ namespace SearchTool_ServerSide.Authentication
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(_jwtOptions.SigningKey);
-
             try
             {
                 var principal = tokenHandler.ValidateToken(refreshToken, new TokenValidationParameters
@@ -79,7 +78,7 @@ namespace SearchTool_ServerSide.Authentication
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    ValidateLifetime = false, // Since it's a refresh token
+                    ValidateLifetime = true, // Since it's a refresh token
                     ClockSkew = TimeSpan.Zero
                 }, out SecurityToken validatedToken);
 
