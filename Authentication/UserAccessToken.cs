@@ -78,7 +78,7 @@ namespace SearchTool_ServerSide.Authentication
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    ValidateLifetime = true, // Since it's a refresh token
+                    ValidateLifetime = false, // Since it's a refresh token
                     ClockSkew = TimeSpan.Zero
                 }, out SecurityToken validatedToken);
 
