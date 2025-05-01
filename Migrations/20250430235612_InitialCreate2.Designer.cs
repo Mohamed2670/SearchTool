@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SearchTool_ServerSide.Data;
@@ -11,9 +12,11 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    partial class SearchToolDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250430235612_InitialCreate2")]
+    partial class InitialCreate2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -456,7 +459,7 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<decimal>("InsurancePay")
                         .HasColumnType("numeric");
 
-                    b.Property<int?>("InsuranceRxId")
+                    b.Property<int>("InsuranceRxId")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("NetPrice")
@@ -467,6 +470,9 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.Property<decimal>("PatientPay")
                         .HasColumnType("numeric");
+
+                    b.Property<int>("RxgroupId")
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -553,7 +559,7 @@ namespace SearchTool_ServerSide.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("BinId")
+                    b.Property<int>("BinId")
                         .HasColumnType("integer");
 
                     b.Property<DateTime>("Date")
@@ -562,22 +568,22 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("DrugId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("InsuranceId")
+                    b.Property<int>("InsuranceId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("InsurancePCNId")
+                    b.Property<int>("InsurancePCNId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("InsuranceRxId")
+                    b.Property<int>("InsuranceRxId")
                         .HasColumnType("integer");
 
                     b.Property<int>("OrderItemId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("PcnId")
+                    b.Property<int>("PcnId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("RxgroupId")
+                    b.Property<int>("RxgroupId")
                         .HasColumnType("integer");
 
                     b.Property<string>("SearchType")
@@ -863,7 +869,9 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.HasOne("SearchTool_ServerSide.Models.InsuranceRx", "InsuranceRx")
                         .WithMany()
-                        .HasForeignKey("InsuranceRxId");
+                        .HasForeignKey("InsuranceRxId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("SearchTool_ServerSide.Models.Order", "Order")
                         .WithMany("OrderItems")
@@ -931,15 +939,21 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.HasOne("SearchTool_ServerSide.Models.Insurance", "Insurance")
                         .WithMany()
-                        .HasForeignKey("InsuranceId");
+                        .HasForeignKey("InsuranceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("SearchTool_ServerSide.Models.InsurancePCN", "InsurancePCN")
                         .WithMany()
-                        .HasForeignKey("InsurancePCNId");
+                        .HasForeignKey("InsurancePCNId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("SearchTool_ServerSide.Models.InsuranceRx", "InsuranceRx")
                         .WithMany()
-                        .HasForeignKey("InsuranceRxId");
+                        .HasForeignKey("InsuranceRxId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("SearchTool_ServerSide.Models.OrderItem", "OrderItem")
                         .WithMany()

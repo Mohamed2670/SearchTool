@@ -1175,7 +1175,10 @@ namespace SearchTool_ServerSide.Repository
                             Bin = ins.Bin,
                             BinFullName = ins.Name,
                             RxGroup = irx.RxGroup,
-                            PCN = ipcn.PCN
+                            PCN = ipcn.PCN,
+                            pcnId = ipcn.Id,
+                            rxgroupId = irx.Id,
+                            binId = ins.Id,
                         };
 
             var result = await query.FirstOrDefaultAsync();
@@ -1188,7 +1191,10 @@ namespace SearchTool_ServerSide.Repository
             dto.BinFullName = result.BinFullName;
             dto.rxgroup = result.RxGroup;
             dto.pcn = result.PCN;
-
+            dto.pcnId = result.pcnId;
+            dto.rxgroupId = result.rxgroupId;
+            dto.binId = result.binId;
+            
             return dto;
         }
 

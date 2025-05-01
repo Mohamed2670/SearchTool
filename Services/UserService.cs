@@ -48,7 +48,7 @@ namespace SearchTool_ServerSide.Services
             };
             await _logRepository.Add(log);
 
-            var accessToken = TokenGenerate(user, expiresInMinutes: 15);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 1);
             // Refresh token now valid for 8 hours
             var refreshToken = TokenGenerate(user, expiresInMinutes: 480);
             var userId = user.Id.ToString();
@@ -105,7 +105,7 @@ namespace SearchTool_ServerSide.Services
                 return null;
             }
 
-            var accessToken = TokenGenerate(user, expiresInMinutes: 15);
+            var accessToken = TokenGenerate(user, expiresInMinutes: 1);
             // Refresh token now valid for 8 hours
             var refreshToken = TokenGenerate(user, expiresInMinutes: 480);
             var userId = user.Id.ToString();

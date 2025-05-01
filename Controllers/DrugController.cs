@@ -248,9 +248,10 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetLatestScriptsByMonthYear(month, year);
             return Ok(items);
         }
-        [HttpPost("AddScritps"), Authorize]
+        [HttpPost("AddScritps"),Authorize(Policy = "Admin")]
         public async Task<IActionResult> AddScritps(ICollection<ScriptAddDto> scriptAddDtos)
         {
+            Console.WriteLine("Hello : ");
             await _drugService.AddScripts(scriptAddDtos);
             return Ok("Items Added Succesfuly");
         }

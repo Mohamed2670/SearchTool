@@ -23,6 +23,9 @@ namespace SearchTool_ServerSide.Data
         public DbSet<InsuranceRx> InsuranceRxes { get; set; }
         public DbSet<InsurancePCN> InsurancePCNs { get; set; }
         public DbSet<Log> Logs { get; set; }
+        public DbSet<SearchLog>SearchLogs { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
