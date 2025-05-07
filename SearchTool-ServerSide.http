@@ -1,0 +1,6 @@
+@SearchTool_ServerSide_HostAddress = http://localhost:5107
+
+GET {{SearchTool_ServerSide_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
