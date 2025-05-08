@@ -128,7 +128,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
-        [HttpGet("GetDrugById")]
+        [HttpGet("GetDrugById"),AllowAnonymous]
         public async Task<IActionResult> GetDrugById([FromQuery] int id)
         {
             var item = await _drugService.GetDrugById(id);

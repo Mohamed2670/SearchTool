@@ -32,7 +32,7 @@ namespace SearchTool_ServerSide.Repository
             _mapper = mapper;
             _cache = cache;
         }
-        public async Task<ICollection<Drug>> GetDrugsByName(string name,int pageNumber,int pageSize = 20)
+        public async Task<ICollection<Drug>> GetDrugsByName(string name, int pageNumber, int pageSize = 20)
         {
             var items = await _context.Drugs
                 .Where(x => x.Name.ToLower().Contains(name.ToLower()))
@@ -141,7 +141,7 @@ namespace SearchTool_ServerSide.Repository
 
             // **Step 3: Load Existing Drugs by NDC & Name**
             var existingDrugsByNdc = await context.Drugs
-                .GroupBy(d => new { d.NDC, d.Strength })
+                .GroupBy(d => d.NDC)
                 .ToDictionaryAsync(g => g.Key, g => g.First());
 
             var existingDrugsByName = await context.Drugs
@@ -149,10 +149,28 @@ namespace SearchTool_ServerSide.Repository
                 .ToDictionaryAsync(g => g.Key, g => g.First());
 
             var newDrugs = new List<Drug>();
+            var newDrugClasses = new List<DrugClass>();
 
             foreach (var record in records)
             {
+                if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
+                {
+                    drugClass = new DrugClass { Name = record.DrugClass };
+                    newDrugClasses.Add(drugClass);
+                    drugClasses[record.DrugClass] = drugClass; // Add to dictionary for future lookups
+                }
+            }
 
+            // Batch insert new drug classes
+            if (newDrugClasses.Any())
+            {
+                await context.DrugClasses.AddRangeAsync(newDrugClasses);
+                await context.SaveChangesAsync();
+                Console.WriteLine($"Added {newDrugClasses.Count} new drug classes at {DateTime.Now}");
+            }
+
+            foreach (var record in records)
+            {
                 record.Name = record.Name.ToUpper();
                 if (record.DrugClass == null)
                 {
@@ -161,52 +179,44 @@ namespace SearchTool_ServerSide.Repository
                 string tempNdc = NormalizeNdcTo11Digits(record.NDC);
 
                 // **Check if Drug Exists by NDC**
-                if (existingDrugsByNdc.ContainsKey(new { NDC = tempNdc, Strength = record.Strength }))
+                if (existingDrugsByNdc.ContainsKey(tempNdc))
                 {
                     continue; // Skip existing drug
                 }
 
                 // **Check if Drug Exists by Name**
-                if (existingDrugsByName.TryGetValue(record.Name, out var existingDrug))
-                {
-                    var newDrug = new Drug
-                    {
-                        Name = record.Name,
-                        NDC = tempNdc,
-                        Form = existingDrug.Form,
-                        Strength = existingDrug.Strength,
-                        DrugClassId = existingDrug.DrugClassId,
-                        ACQ = record.ACQ ?? 0,
-                        AWP = record.AWP ?? 0,
-                        Rxcui = existingDrug.Rxcui,
-                        Route = record.Route,
-                        Ingrdient = record.Ingrdient,
-                        TECode = record.TECode,
-                        ApplicationNumber = record.ApplicationNumber,
-                        ApplicationType = record.ApplicationType
-                    };
+                // if (existingDrugsByName.TryGetValue(record.Name, out var existingDrug))
+                // {
+                //     var newDrug = new Drug
+                //     {
+                //         Name = record.Name,
+                //         NDC = tempNdc,
+                //         Form = existingDrug.Form,
+                //         Strength = existingDrug.Strength,
+                //         DrugClassId = existingDrug.DrugClassId,
+                //         ACQ = record.ACQ ?? 0,
+                //         AWP = record.AWP ?? 0,
+                //         Rxcui = existingDrug.Rxcui,
+                //         Route = record.Route,
+                //         Ingrdient = record.Ingrdient,
+                //         TECode = record.TECode,
+                //         ApplicationNumber = record.ApplicationNumber,
+                //         ApplicationType = record.ApplicationType
+                //     };
 
-                    newDrugs.Add(newDrug);
-                    existingDrugsByNdc[new { NDC = tempNdc, Strength = record.Strength }] = newDrug; // Add to dictionary
-                }
-                else
+                //     newDrugs.Add(newDrug);
+                //     existingDrugsByNdc[tempNdc] = newDrug; // Add to dictionary
+                // }
+                // else
                 {
                     // **Create Drug Class if Missing**
-                    if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
-                    {
-                        drugClass = new DrugClass { Name = record.DrugClass };
-                        await context.DrugClasses.AddAsync(drugClass);
-                        await context.SaveChangesAsync();
-                        drugClasses[record.DrugClass] = drugClass;
-                    }
-
                     var newDrug = new Drug
                     {
                         Name = record.Name,
                         NDC = tempNdc,
                         Form = record.Form,
                         Strength = record.Strength,
-                        DrugClassId = drugClass.Id,
+                        DrugClassId = drugClasses[record.DrugClass].Id,
                         ACQ = record.ACQ ?? 0,
                         AWP = record.AWP ?? 0,
                         Rxcui = record.Rxcui,
@@ -218,16 +228,28 @@ namespace SearchTool_ServerSide.Repository
                     };
 
                     newDrugs.Add(newDrug);
-                    existingDrugsByNdc[new { NDC = tempNdc, Strength = record.Strength }] = newDrug; // Add to dictionary
+                    existingDrugsByNdc[tempNdc] = newDrug; // Add to dictionary
+                }
+
+                // **Batch Processing**
+                if (newDrugs.Count >= 10000)
+                {
+                    await context.Drugs.AddRangeAsync(newDrugs);
+                    await context.SaveChangesAsync();
+                    Console.WriteLine($"Processed batch of 10,000 drugs at {DateTime.Now}");
+                    newDrugs.Clear();
                 }
             }
 
+            // Save remaining drugs
             if (newDrugs.Any())
             {
                 await context.Drugs.AddRangeAsync(newDrugs);
                 await context.SaveChangesAsync();
+                Console.WriteLine($"Processed final batch of {newDrugs.Count} drugs at {DateTime.Now}");
             }
         }
+
         public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
         {
 
@@ -1326,7 +1348,7 @@ namespace SearchTool_ServerSide.Repository
                         BranchId = 1,
                         InsuranceId = 0,
                         Drug = item.Drug
-                        
+
                     };
 
                     var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
@@ -1344,6 +1366,7 @@ namespace SearchTool_ServerSide.Repository
                     dto.Route = item.Drug.Route;
                     dto.Strength = item.Drug.Strength;
                     dto.Form = item.Drug.Form;
+                    dto.Ingrdient = item.Drug.Ingrdient;
                     return dto;
                 }
             }).ToList();
