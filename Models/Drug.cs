@@ -11,6 +11,8 @@ namespace SearchTool_ServerSide.Models
         public string? Strength { get; set; }
         public int DrugClassId { get; set; }
         public DrugClass? DrugClass { get; set; }
+        public int DrugClassV2Id { get; set; }
+        public DrugClassV2? DrugClassV2 { get; set; }
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

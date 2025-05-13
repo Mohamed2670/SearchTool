@@ -30,6 +30,11 @@ namespace SearchTool_ServerSide.Repository
             return await _context.Set<T>().ToListAsync();
 
         }
+        public async Task<IEnumerable<T>?> GetAllV2()
+        {
+            return await _context.Set<T>().ToListAsync();
+
+        }
 
         public async Task<T?> GetById(int id)
         {

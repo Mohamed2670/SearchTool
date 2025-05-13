@@ -8,7 +8,7 @@ using ServerSide.Models;
 
 namespace SearchTool_ServerSide.Controllers
 {
-    [ApiController, Route("drug"),Authorize, Authorize(Policy ="Pharmacist")]
+    [ApiController, Route("drug"), Authorize, Authorize(Policy = "Pharmacist")]
     public class DrugController(DrugService _drugService, UserAccessToken userAccessToken) : ControllerBase
     {
         [HttpGet, AllowAnonymous]
@@ -29,6 +29,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAll();
             return Ok(items);
         }
+
         [HttpGet("SearchByNdc")]
         public async Task<IActionResult> SearchByNdc([FromQuery] string ndc)
         {
@@ -37,7 +38,7 @@ namespace SearchTool_ServerSide.Controllers
         }
 
         [HttpGet("searchByName")]
-        public async Task<IActionResult> SearchByname([FromQuery]string name, [FromQuery] int pageNumber,[FromQuery] int pageSize)
+        public async Task<IActionResult> SearchByname([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             // Console.WriteLine("Name: " + name+" PageNumber: " + pageNumber + " PageSize: " + pageSize);
             var items = await _drugService.SearchName(name, pageNumber, pageSize);
@@ -128,7 +129,13 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
-        [HttpGet("GetDrugById"),AllowAnonymous]
+        [HttpGet("GetAllDrugsV2"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsV2([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllDrugsV2(classId);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugById"), AllowAnonymous]
         public async Task<IActionResult> GetDrugById([FromQuery] int id)
         {
             var item = await _drugService.GetDrugById(id);
@@ -250,14 +257,14 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetLatestScriptsByMonthYear(month, year);
             return Ok(items);
         }
-        [HttpPost("AddScritps"),Authorize(Policy = "Admin")]
+        [HttpPost("AddScritps"), Authorize(Policy = "Admin")]
         public async Task<IActionResult> AddScritps(ICollection<ScriptAddDto> scriptAddDtos)
         {
             Console.WriteLine("Hello : ");
             await _drugService.AddScripts(scriptAddDtos);
             return Ok("Items Added Succesfuly");
         }
-        [HttpGet("GetBestAlternativeByNDCRxGroupId"),AllowAnonymous]
+        [HttpGet("GetBestAlternativeByNDCRxGroupId"), AllowAnonymous]
         public async Task<IActionResult> GetBestAlternativeByNDCRxGroupId([FromQuery] int classId, [FromQuery] int rxGroupId)
         {
             var items = await _drugService.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);

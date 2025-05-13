@@ -26,6 +26,7 @@ namespace SearchTool_ServerSide.Data
         public DbSet<SearchLog>SearchLogs { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
+        public DbSet<DrugClassV2> DrugClassV2s { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

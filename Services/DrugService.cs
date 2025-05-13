@@ -20,9 +20,9 @@ namespace SearchTool_ServerSide.Services
         {
             await _drugRepository.ImportDrugInsuranceAsync();
         }
-        public async Task<ICollection<Drug>> SearchName(string name,int pageNumber,int pageSize)
+        public async Task<ICollection<Drug>> SearchName(string name, int pageNumber, int pageSize)
         {
-            var items = await _drugRepository.GetDrugsByName(name,pageNumber,pageSize);
+            var items = await _drugRepository.GetDrugsByName(name, pageNumber, pageSize);
             return items;
         }
 
@@ -119,7 +119,11 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAllDrugs(classId);
             return items;
         }
-
+        internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
+        {
+            var items = await _drugRepository.GetAllDrugsV2(classId);
+            return items;
+        }
         internal async Task<Drug> GetDrugById(int id)
         {
             var item = await _drugRepository.GetDrugById(id);
@@ -213,6 +217,11 @@ namespace SearchTool_ServerSide.Services
         internal async Task<IEnumerable<Drug>> GetAll()
         {
             var items = await _drugRepository.GetAll();
+            return items;
+        }
+        internal async Task<IEnumerable<Drug>> GetAllV2()
+        {
+            var items = await _drugRepository.GetAllV2();
             return items;
         }
 

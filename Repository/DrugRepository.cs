@@ -138,6 +138,7 @@ namespace SearchTool_ServerSide.Repository
 
             // **Step 2: Load Existing Drug Classes**
             var drugClasses = await context.DrugClasses.ToDictionaryAsync(dc => dc.Name, dc => dc);
+            var drugClassesV2 = await context.DrugClassV2s.ToDictionaryAsync(dc => dc.Name, dc => dc);
 
             // **Step 3: Load Existing Drugs by NDC & Name**
             var existingDrugsByNdc = await context.Drugs
@@ -150,7 +151,7 @@ namespace SearchTool_ServerSide.Repository
 
             var newDrugs = new List<Drug>();
             var newDrugClasses = new List<DrugClass>();
-
+            var newDrugClassesV2 = new List<DrugClassV2>();
             foreach (var record in records)
             {
                 if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
@@ -159,12 +160,22 @@ namespace SearchTool_ServerSide.Repository
                     newDrugClasses.Add(drugClass);
                     drugClasses[record.DrugClass] = drugClass; // Add to dictionary for future lookups
                 }
+                if (!drugClassesV2.TryGetValue(record.ClassV2, out var classV2))
+                {
+                    // Console.WriteLine($"Adding new DrugClassV2: {record.ClassV2}");
+
+                    classV2 = new DrugClassV2 { Name = record.ClassV2 };
+                    newDrugClassesV2.Add(classV2);
+                    drugClassesV2[record.ClassV2] = classV2; // Add to dictionary for future lookups
+                }
             }
 
             // Batch insert new drug classes
-            if (newDrugClasses.Any())
+            if (newDrugClasses.Any() || newDrugClassesV2.Any())
             {
                 await context.DrugClasses.AddRangeAsync(newDrugClasses);
+                await context.DrugClassV2s.AddRangeAsync(newDrugClassesV2);
+
                 await context.SaveChangesAsync();
                 Console.WriteLine($"Added {newDrugClasses.Count} new drug classes at {DateTime.Now}");
             }
@@ -217,6 +228,7 @@ namespace SearchTool_ServerSide.Repository
                         Form = record.Form,
                         Strength = record.Strength,
                         DrugClassId = drugClasses[record.DrugClass].Id,
+                        DrugClassV2Id = drugClassesV2[record.ClassV2].Id,
                         ACQ = record.ACQ ?? 0,
                         AWP = record.AWP ?? 0,
                         Rxcui = record.Rxcui,
@@ -272,6 +284,8 @@ namespace SearchTool_ServerSide.Repository
                                     .GroupBy(d => d.Name)
                                     .ToDictionary(g => g.Key, g => g.First());
             var drugClassDict = await _context.DrugClasses.ToDictionaryAsync(dc => dc.Id);
+            var drugClassV2Dict = await _context.DrugClassV2s.ToDictionaryAsync(dc => dc.Id);
+
             var newInsurances = new List<Insurance>();
             var newInsurancePCNs = new List<InsurancePCN>();
             var newInsuranceRxes = new List<InsuranceRx>();
@@ -756,6 +770,7 @@ namespace SearchTool_ServerSide.Repository
                             Form = tempDrug.Form,
                             Strength = tempDrug.Strength,
                             DrugClassId = tempDrug.DrugClassId,
+                            DrugClassV2Id = tempDrug.DrugClassV2Id,
                             ACQ = record.AcquisitionCost,
                             AWP = 0,
                             Rxcui = tempDrug.Rxcui,
@@ -1284,6 +1299,20 @@ namespace SearchTool_ServerSide.Repository
                 .ToListAsync();
             return items;
         }
+
+        internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
+        {
+            var items = await _context.Drugs
+                 .Where(x => x.DrugClassV2Id == classId)
+                 .GroupBy(x => x.NDC)
+                 .Select(g => g.First())
+                 .ToListAsync();
+
+
+            return items;
+        }
+
+
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
         {
             var query = from d in _context.Drugs.Where(d => d.DrugClassId == classId)
@@ -1496,6 +1525,8 @@ namespace SearchTool_ServerSide.Repository
             public string? ApplicationNumber { get; set; }
             [Name("Appl_Type")]
             public string? ApplicationType { get; set; }
+            [Name("semiGroup")]
+            public string? ClassV2 { get; set; }
         }
         internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {
