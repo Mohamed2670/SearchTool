@@ -104,8 +104,6 @@ namespace SearchTool_ServerSide.Controllers
                 return BadRequest("Invalid user ID format");
             }
 
-            // Use logging instead of Console.WriteLine
-
             var user = await _userService.GetUserById(userId);
             if (user == null)
             {

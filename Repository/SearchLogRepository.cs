@@ -15,6 +15,12 @@ namespace SearchTool_ServerSide.Repository
             _mapper = mapper;
         }
 
+        internal async Task<SearchLog> GetByOrderItemId(int id)
+        {
+            var searchLog = await _context.SearchLogs
+                .FirstOrDefaultAsync(s => s.OrderItemId == id);
 
+            return searchLog;
+        }
     }
 }

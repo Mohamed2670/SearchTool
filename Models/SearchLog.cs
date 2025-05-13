@@ -12,7 +12,7 @@ namespace SearchTool_ServerSide.Models
         public int DrugId { get; set; }
         public int UserId { get; set; }
         public int OrderItemId { get; set; }
-        public OrderItem OrderItem { get; set; }
+        // public OrderItem OrderItem { get; set; }
         public User User { get; set; }
         public Insurance? Insurance { get; set; }
         public Drug Drug { get; set; }

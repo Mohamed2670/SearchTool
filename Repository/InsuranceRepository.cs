@@ -86,5 +86,13 @@ namespace SearchTool_ServerSide.Repository
             var items = await _context.InsurancePCNs.Where(x => x.Insurance.Id == id).ToListAsync();
             return items;
         }
+        internal async Task<InsuranceRx> GetRXById(int id)
+        {
+            return await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.Id == id);
+        }
+        internal async Task<InsurancePCN> GetPCNById(int id)
+        {
+            return await _context.InsurancePCNs.FirstOrDefaultAsync(x => x.Id == id);
+        }
     }
 }

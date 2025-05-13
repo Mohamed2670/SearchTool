@@ -14,5 +14,6 @@ namespace SearchTool_ServerSide.Models
         public decimal AddtionalCost { get; set; }
         public User User { get; set; }
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
+
     }
 }

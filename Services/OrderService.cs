@@ -8,7 +8,7 @@ using SearchTool_ServerSide.Repository;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class OrderService(DrugRepository _drugrepository,OrderRepository _orderRepository, OrderItemRepository _orderItemRepository, IMapper _mapper, SearchLogRepository _searchLogRepository)
+    public class OrderService(DrugRepository _drugrepository, InsuranceRepository _insuranceRepository, OrderRepository _orderRepository, OrderItemRepository _orderItemRepository, IMapper _mapper, SearchLogRepository _searchLogRepository)
     {
         internal async Task CreateOrder(ICollection<OrderItemAddDto> orderItemAddDtos, string userId, ICollection<SearchLogAddDto> searchLogAddDtos)
         {
@@ -65,6 +65,48 @@ namespace SearchTool_ServerSide.Services
                 }
             }
         }
+
+        internal async Task<ICollection<OrderHistoryReadDto>> GetAllOrdersByUserId(int userId)
+        {
+            var orders = await _orderRepository.GetAllOrdersByUserId(userId);
+            if (orders == null || !orders.Any())
+            {
+                return null;
+            }
+            var orderHistoryReadDtos = new List<OrderHistoryReadDto>();
+            foreach (var order in orders)
+            {
+                var orderItemReadDtos = new List<OrderItemReadDto>();
+                foreach (var item in order.OrderItems)
+                {
+                    var searchLog = await _searchLogRepository.GetByOrderItemId(item.Id);
+                    item.SearchLogReadDto = _mapper.Map<SearchLogReadDto>(searchLog);
+                    var drug = await _drugrepository.GetById(item.DrugId);
+                    var rxGroup = await _insuranceRepository.GetRXById(searchLog.RxgroupId ?? 0);
+                    var pcn = await _insuranceRepository.GetPCNById(searchLog.PcnId ?? 0);
+                    var bin = await _insuranceRepository.GetById(searchLog.BinId ?? 0);
+                    item.SearchLogReadDto.DrugName = drug?.Name;
+                    item.SearchLogReadDto.NDC = drug?.NDC;
+                    item.SearchLogReadDto.RxgroupName = rxGroup?.RxGroup;
+                    item.SearchLogReadDto.PcnName = pcn?.PCN;
+                    item.SearchLogReadDto.BinName = bin?.Bin;
+                    var orderItemReadDto = _mapper.Map<OrderItemReadDto>(item);
+                    var OrderDrug = await _drugrepository.GetById(item.DrugId);
+                    orderItemReadDto.DrugName = OrderDrug.Name;
+                    orderItemReadDto.NDC = OrderDrug.NDC;
+                    var insurance = await _insuranceRepository.GetRXById(item.InsuranceRxId ?? 0);
+                    orderItemReadDto.InsuranceRxName = insurance.RxGroup;
+
+                    orderItemReadDtos.Add(orderItemReadDto);
+                }
+                var orderHistoryReadDto = _mapper.Map<OrderHistoryReadDto>(order);
+                orderHistoryReadDto.OrderItemReadDtos = orderItemReadDtos;
+                orderHistoryReadDtos.Add(orderHistoryReadDto);
+            }
+            return orderHistoryReadDtos;
+        }
+
+
     }
 
 
