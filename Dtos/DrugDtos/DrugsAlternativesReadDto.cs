@@ -35,6 +35,8 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public string ApplicationNumber { get; set; }
         public string ApplicationType { get; set; }
         public string? Ingrdient { get; set; }
+        public string? StrengthUnit { get; set; }
+        public string? Type { get; set; }
 
     }
 }

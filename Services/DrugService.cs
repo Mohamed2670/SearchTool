@@ -119,6 +119,11 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAllDrugs(classId);
             return items;
         }
+         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2Insu(int classId)
+        {
+            var items = await _drugRepository.GetAllDrugsV2Insu(classId);
+            return items;
+        }
         internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
         {
             var items = await _drugRepository.GetAllDrugsV2(classId);
@@ -238,6 +243,16 @@ namespace SearchTool_ServerSide.Services
         internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
         {
             var items = await _drugRepository.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
+            return items;
+        }
+        internal async Task AddMediCare()
+        {
+            await _drugRepository.AddMediCare();
+        }
+
+        internal async Task<ICollection<DrugMediReadDto>> GetAllMediDrugs(int classId)
+        {
+            var items = await _drugRepository.GetAllMediDrugs(classId);
             return items;
         }
     }

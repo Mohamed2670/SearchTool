@@ -129,6 +129,12 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
+        [HttpGet("GetAllDrugsV2Insu"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsV2Insu([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllDrugsV2Insu(classId);
+            return Ok(items);
+        }
         [HttpGet("GetAllDrugsV2"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugsV2([FromQuery] int classId)
         {
@@ -274,5 +280,18 @@ namespace SearchTool_ServerSide.Controllers
             }
             return Ok(items);
         }
+        [HttpGet("AddMediCare"), AllowAnonymous]
+        public async Task<IActionResult> AddMediCare()
+        {
+            await _drugService.AddMediCare();
+            return Ok("Items Added Succesfuly");
+        }
+        [HttpGet("GetAllMediDrugs"), AllowAnonymous]
+        public async Task<IActionResult> GetAllMediDrugs([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllMediDrugs(classId);
+            return Ok(items);
+        }
+
     }
 }

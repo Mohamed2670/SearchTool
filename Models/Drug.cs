@@ -21,5 +21,7 @@ namespace SearchTool_ServerSide.Models
         public string? Ingrdient { get; set; }
         public string? ApplicationNumber { get; set; }
         public string? ApplicationType { get; set; }
+        public string? StrengthUnit { get; set; }
+        public string? Type { get; set; }
     }
 }
