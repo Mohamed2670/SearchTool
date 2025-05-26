@@ -119,12 +119,17 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAllDrugs(classId);
             return items;
         }
-         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2Insu(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV3(int classId)
+        {
+            var items = await _drugRepository.GetAllDrugsV3(classId);
+            return items;
+        }
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2Insu(int classId)
         {
             var items = await _drugRepository.GetAllDrugsV2Insu(classId);
             return items;
         }
-        internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2(int classId)
         {
             var items = await _drugRepository.GetAllDrugsV2(classId);
             return items;
@@ -183,6 +188,11 @@ namespace SearchTool_ServerSide.Services
         internal async Task<ICollection<Drug>> GetDrugsByInsurance(string insruance)
         {
             var items = await _drugRepository.GetDrugsByInsurance(insruance);
+            return items;
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNameDrugName(string insuranceName, string drugName, int pageSize = 1000, int pageNumber = 1)
+        {
+            var items = await _drugRepository.GetDrugsByInsuranceNameDrugName(insuranceName, drugName, pageSize, pageNumber);
             return items;
         }
         internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
@@ -254,6 +264,19 @@ namespace SearchTool_ServerSide.Services
         {
             var items = await _drugRepository.GetAllMediDrugs(classId);
             return items;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        {
+            return await _drugRepository.GetDrugsByInsuranceNamePagintated(insurance,drugName, pageSize, pageNumber);
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        {
+            return await _drugRepository.GetDrugsByPCNPagintated(insurance,drugName, pageSize, pageNumber);
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        {
+            return await _drugRepository.GetDrugsByBINPagintated(insurance,drugName, pageSize, pageNumber);
         }
     }
 }

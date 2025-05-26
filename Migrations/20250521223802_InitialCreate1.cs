@@ -9,7 +9,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace SearchTool_ServerSide.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class InitialCreate1 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -38,6 +38,19 @@ namespace SearchTool_ServerSide.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_DrugClassV2s", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DrugClassV3s",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DrugClassV3s", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -80,6 +93,7 @@ namespace SearchTool_ServerSide.Migrations
                     Strength = table.Column<string>(type: "text", nullable: true),
                     DrugClassId = table.Column<int>(type: "integer", nullable: false),
                     DrugClassV2Id = table.Column<int>(type: "integer", nullable: false),
+                    DrugClassV3Id = table.Column<int>(type: "integer", nullable: false),
                     ACQ = table.Column<decimal>(type: "numeric", nullable: false),
                     AWP = table.Column<decimal>(type: "numeric", nullable: false),
                     Rxcui = table.Column<decimal>(type: "numeric", nullable: true),
@@ -87,7 +101,9 @@ namespace SearchTool_ServerSide.Migrations
                     TECode = table.Column<string>(type: "text", nullable: true),
                     Ingrdient = table.Column<string>(type: "text", nullable: true),
                     ApplicationNumber = table.Column<string>(type: "text", nullable: true),
-                    ApplicationType = table.Column<string>(type: "text", nullable: true)
+                    ApplicationType = table.Column<string>(type: "text", nullable: true),
+                    StrengthUnit = table.Column<string>(type: "text", nullable: true),
+                    Type = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -96,6 +112,12 @@ namespace SearchTool_ServerSide.Migrations
                         name: "FK_Drugs_DrugClassV2s_DrugClassV2Id",
                         column: x => x.DrugClassV2Id,
                         principalTable: "DrugClassV2s",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Drugs_DrugClassV3s_DrugClassV3Id",
+                        column: x => x.DrugClassV3Id,
+                        principalTable: "DrugClassV3s",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
@@ -142,6 +164,31 @@ namespace SearchTool_ServerSide.Migrations
                         name: "FK_MainCompanies_Specialties_SpecialtyId",
                         column: x => x.SpecialtyId,
                         principalTable: "Specialties",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DrugMedis",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    DrugId = table.Column<int>(type: "integer", nullable: false),
+                    DrugNDC = table.Column<string>(type: "text", nullable: false),
+                    PriorAuthorization = table.Column<string>(type: "text", nullable: false),
+                    ExtendedDuration = table.Column<string>(type: "text", nullable: false),
+                    CostCeilingTier = table.Column<string>(type: "text", nullable: false),
+                    NonCapitatedDrugIndicator = table.Column<string>(type: "text", nullable: false),
+                    CCSPanelAuthority = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DrugMedis", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DrugMedis_Drugs_DrugId",
+                        column: x => x.DrugId,
+                        principalTable: "Drugs",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -267,6 +314,8 @@ namespace SearchTool_ServerSide.Migrations
                     BranchId = table.Column<int>(type: "integer", nullable: false),
                     NDCCode = table.Column<string>(type: "text", nullable: false),
                     DrugClassId = table.Column<int>(type: "integer", nullable: false),
+                    DrugClassV2Id = table.Column<int>(type: "integer", nullable: false),
+                    DrugClassV3Id = table.Column<int>(type: "integer", nullable: false),
                     Net = table.Column<decimal>(type: "numeric", nullable: false),
                     date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Prescriber = table.Column<string>(type: "text", nullable: false),
@@ -629,6 +678,11 @@ namespace SearchTool_ServerSide.Migrations
                 column: "DrugId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DrugMedis_DrugId",
+                table: "DrugMedis",
+                column: "DrugId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Drugs_DrugClassId",
                 table: "Drugs",
                 column: "DrugClassId");
@@ -637,6 +691,11 @@ namespace SearchTool_ServerSide.Migrations
                 name: "IX_Drugs_DrugClassV2Id",
                 table: "Drugs",
                 column: "DrugClassV2Id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Drugs_DrugClassV3Id",
+                table: "Drugs",
+                column: "DrugClassV3Id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_InsurancePCNs_InsuranceId",
@@ -763,6 +822,9 @@ namespace SearchTool_ServerSide.Migrations
                 name: "DrugInsurances");
 
             migrationBuilder.DropTable(
+                name: "DrugMedis");
+
+            migrationBuilder.DropTable(
                 name: "Logs");
 
             migrationBuilder.DropTable(
@@ -791,6 +853,9 @@ namespace SearchTool_ServerSide.Migrations
 
             migrationBuilder.DropTable(
                 name: "DrugClassV2s");
+
+            migrationBuilder.DropTable(
+                name: "DrugClassV3s");
 
             migrationBuilder.DropTable(
                 name: "DrugClasses");

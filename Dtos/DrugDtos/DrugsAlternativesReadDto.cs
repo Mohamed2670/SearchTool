@@ -8,6 +8,8 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public required string NDCCode { get; set; }
         public required string DrugName { get; set; }
         public int DrugClassId { get; set; }
+        public int DrugClassV2Id { get; set; }
+        public int DrugClassV3Id { get; set; }
         public string insuranceName { get; set; }
         public decimal Net { get; set; }
         public DateTime date { get; set; }

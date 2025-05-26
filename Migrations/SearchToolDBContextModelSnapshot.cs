@@ -230,6 +230,9 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("DrugClassV2Id")
                         .HasColumnType("integer");
 
+                    b.Property<int>("DrugClassV3Id")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Form")
                         .HasColumnType("text");
 
@@ -267,6 +270,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasIndex("DrugClassId");
 
                     b.HasIndex("DrugClassV2Id");
+
+                    b.HasIndex("DrugClassV3Id");
 
                     b.ToTable("Drugs");
                 });
@@ -323,6 +328,23 @@ namespace SearchTool_ServerSide.Migrations
                     b.ToTable("DrugClassV2s");
                 });
 
+            modelBuilder.Entity("SearchTool_ServerSide.Models.DrugClassV3", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DrugClassV3s");
+                });
+
             modelBuilder.Entity("SearchTool_ServerSide.Models.DrugInsurance", b =>
                 {
                     b.Property<int>("InsuranceId")
@@ -341,6 +363,12 @@ namespace SearchTool_ServerSide.Migrations
                         .HasColumnType("numeric");
 
                     b.Property<int>("DrugClassId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DrugClassV2Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DrugClassV3Id")
                         .HasColumnType("integer");
 
                     b.Property<int>("Id")
@@ -908,9 +936,17 @@ namespace SearchTool_ServerSide.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SearchTool_ServerSide.Models.DrugClassV3", "DrugClassV3")
+                        .WithMany()
+                        .HasForeignKey("DrugClassV3Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("DrugClass");
 
                     b.Navigation("DrugClassV2");
+
+                    b.Navigation("DrugClassV3");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.DrugBranch", b =>

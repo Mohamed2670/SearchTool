@@ -149,6 +149,12 @@ namespace SearchTool_ServerSide.Controllers
             var users = await _userService.GetAllUser();
             return Ok(users);
         }
+        [HttpGet("allCrid"),Authorize(Policy = "SuperAdmin"),Authorize]
+        public async Task<IActionResult> GetAllUserCrid()
+        {
+            var users = await _userService.GetAllUserCrid();
+            return Ok(users);
+        }
         [HttpGet("Logout")]
         public IActionResult LogOut()
         {

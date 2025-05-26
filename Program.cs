@@ -43,6 +43,9 @@ builder.Services.AddAuthentication()
 
         });
 builder.Services.AddDbContext<SearchToolDBContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("SearchTool")));
+builder.Services.AddDbContext<GlobalDBContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Global")));
+
+
 builder.Services.AddScoped<UserAccessToken>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<DrugRepository>();
@@ -58,6 +61,7 @@ builder.Services.AddScoped<DrugService>();
 builder.Services.AddScoped<UserSevice>();
 builder.Services.AddScoped<InsuranceService>();
 builder.Services.AddScoped<LogsService>();
+builder.Services.AddScoped<DataSyncService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();

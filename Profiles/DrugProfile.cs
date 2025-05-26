@@ -17,6 +17,10 @@ namespace SearchTool_ServerSide.Profiles
                       // Map the drug class name from the Drug's DrugClass navigation property
                       .ForMember(dest => dest.DrugClass, opt => opt.MapFrom(src =>
                           src.Drug != null && src.Drug.DrugClass != null ? src.Drug.DrugClass.Name : string.Empty))
+                    .ForMember(dest => dest.DrugClassV2Id, opt => opt.MapFrom(src =>
+                          src.Drug != null && src.Drug.DrugClassV2 != null ? src.Drug.DrugClassV2.Id : 0))
+                    .ForMember(dest => dest.DrugClassV3Id, opt => opt.MapFrom(src =>
+                          src.Drug != null && src.Drug.DrugClassV3 != null ? src.Drug.DrugClassV3.Id : 0))
                       // Map the insurance name from the Insurance navigation property
                       .ForMember(dest => dest.insuranceName, opt => opt.MapFrom(src => src.Insurance != null ? src.Insurance.RxGroup : string.Empty))
                       // Map the branch name from the Branch navigation property

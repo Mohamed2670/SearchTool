@@ -129,6 +129,12 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
+        [HttpGet("GetAllDrugsV3"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsV3([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllDrugsV3(classId);
+            return Ok(items);
+        }
         [HttpGet("GetAllDrugsV2Insu"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugsV2Insu([FromQuery] int classId)
         {
@@ -207,6 +213,34 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetDrugsByInsurance([FromQuery] string insurance)
         {
             var items = await _drugService.GetDrugsByInsurance(insurance);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByInsuranceNamePagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugsByInsuranceNamePagintated(insurance, drugName, pageSize, pageNumber);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByPCNPagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugsByPCNPagintated(insurance, drugName, pageSize, pageNumber);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByBINPagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByBINPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugsByInsuranceNameDrugName"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugsByInsuranceNameDrugName(
+            [FromQuery] string insurance,
+            [FromQuery] string drugName,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugsByInsuranceNameDrugName(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
         [HttpGet("GetDrugsByPCN"), AllowAnonymous]

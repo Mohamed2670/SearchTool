@@ -10,6 +10,10 @@ namespace SearchTool_ServerSide.Models
 
         public required string NDCCode { get; set; }
         public int DrugClassId { get; set; }
+        public int DrugClassV2Id { get; set; }
+
+        public int DrugClassV3Id { get; set; }
+
         public decimal Net { get; set; }
         public DateTime date { get; set; }
         public string Prescriber { get; set; }

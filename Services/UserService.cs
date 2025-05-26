@@ -136,5 +136,11 @@ namespace SearchTool_ServerSide.Services
             var userReadDtos = _mapper.Map<ICollection<UserReadDto>>(users);
             return userReadDtos;
         }
+
+        internal async Task<IEnumerable<User>> GetAllUserCrid()
+        {
+            var users = await _userRepository.GetAll();
+            return users;
+        }
     }
 }

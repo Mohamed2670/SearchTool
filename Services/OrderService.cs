@@ -81,7 +81,7 @@ namespace SearchTool_ServerSide.Services
                 {
                     var searchLog = await _searchLogRepository.GetByOrderItemId(item.Id);
                     item.SearchLogReadDto = _mapper.Map<SearchLogReadDto>(searchLog);
-                    var drug = await _drugrepository.GetById(item.DrugId);
+                    var drug = await _drugrepository.GetById(searchLog.DrugId);
                     var rxGroup = await _insuranceRepository.GetRXById(searchLog.RxgroupId ?? 0);
                     var pcn = await _insuranceRepository.GetPCNById(searchLog.PcnId ?? 0);
                     var bin = await _insuranceRepository.GetById(searchLog.BinId ?? 0);

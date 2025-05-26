@@ -13,6 +13,8 @@ namespace SearchTool_ServerSide.Models
         public DrugClass? DrugClass { get; set; }
         public int DrugClassV2Id { get; set; }
         public DrugClassV2? DrugClassV2 { get; set; }
+        public int DrugClassV3Id { get; set; }
+        public DrugClassV3? DrugClassV3 { get; set; }
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

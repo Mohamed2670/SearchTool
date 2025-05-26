@@ -98,7 +98,7 @@ namespace SearchTool_ServerSide.Repository
         }
         public async Task SaveData()
         {
-            var filePath = "drugs_enriched_updated.csv";
+            var filePath = "drug_enriched_with_group.csv";
 
             var drugs = LoadDrugsFromCsv(filePath);
 
@@ -143,7 +143,7 @@ namespace SearchTool_ServerSide.Repository
             // **Step 2: Load Existing Drug Classes**
             var drugClasses = await context.DrugClasses.ToDictionaryAsync(dc => dc.Name, dc => dc);
             var drugClassesV2 = await context.DrugClassV2s.ToDictionaryAsync(dc => dc.Name, dc => dc);
-
+            var drugClassesV3 = await context.DrugClassV3s.ToDictionaryAsync(dc => dc.Name, dc => dc);
             // **Step 3: Load Existing Drugs by NDC & Name**
             var existingDrugsByNdc = await context.Drugs
                 .GroupBy(d => d.NDC)
@@ -156,6 +156,7 @@ namespace SearchTool_ServerSide.Repository
             var newDrugs = new List<Drug>();
             var newDrugClasses = new List<DrugClass>();
             var newDrugClassesV2 = new List<DrugClassV2>();
+            var newDrugClassesV3 = new List<DrugClassV3>();
             foreach (var record in records)
             {
                 if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
@@ -172,13 +173,22 @@ namespace SearchTool_ServerSide.Repository
                     newDrugClassesV2.Add(classV2);
                     drugClassesV2[record.ClassV2] = classV2; // Add to dictionary for future lookups
                 }
+                if (!drugClassesV3.TryGetValue(record.ClassV3, out var classV3))
+                {
+                    // Console.WriteLine($"Adding new DrugClassV3: {record.ClassV3}");
+
+                    classV3 = new DrugClassV3 { Name = record.ClassV3 };
+                    newDrugClassesV3.Add(classV3);
+                    drugClassesV3[record.ClassV3] = classV3; // Add to dictionary for future lookups
+                }
             }
 
             // Batch insert new drug classes
-            if (newDrugClasses.Any() || newDrugClassesV2.Any())
+            if (newDrugClasses.Any() || newDrugClassesV2.Any() || newDrugClassesV3.Any())
             {
                 await context.DrugClasses.AddRangeAsync(newDrugClasses);
                 await context.DrugClassV2s.AddRangeAsync(newDrugClassesV2);
+                await context.DrugClassV3s.AddRangeAsync(newDrugClassesV3);
 
                 await context.SaveChangesAsync();
                 Console.WriteLine($"Added {newDrugClasses.Count} new drug classes at {DateTime.Now}");
@@ -234,6 +244,7 @@ namespace SearchTool_ServerSide.Repository
                         Strength = record.Strength,
                         DrugClassId = drugClasses[record.DrugClass].Id,
                         DrugClassV2Id = drugClassesV2[record.ClassV2].Id,
+                        DrugClassV3Id = drugClassesV3[record.ClassV3].Id,
                         ACQ = record.ACQ ?? 0,
                         AWP = record.AWP ?? 0,
                         Rxcui = record.Rxcui,
@@ -285,11 +296,20 @@ namespace SearchTool_ServerSide.Repository
 
             using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read);
             using var reader = ExcelReaderFactory.CreateReader(stream);
+            using var reader1 = ExcelReaderFactory.CreateReader(stream);
+            using var reader2 = ExcelReaderFactory.CreateReader(stream);
 
             int rowIndex = 0;
             var existingDrugsByNdc = await _context.Drugs
                .GroupBy(d => d.NDC)
                .ToDictionaryAsync(g => g.Key, g => g.First());
+            var existingClass = await _context.DrugClasses
+               .GroupBy(d => d.Name)
+               .ToDictionaryAsync(g => g.Key, g => g.First());
+            var existingClassV2 = await _context.DrugClassV2s.GroupBy(d => d.Name)
+               .ToDictionaryAsync(g => g.Key, g => g.First());
+            var existingClassV3 = await _context.DrugClassV3s.GroupBy(d => d.Name)
+                .ToDictionaryAsync(g => g.Key, g => g.First());
             var existingDrugMediByNDC = await _context.DrugMedis
                .GroupBy(d => d.DrugNDC)
                .ToDictionaryAsync(g => g.Key, g => g.First());
@@ -299,14 +319,17 @@ namespace SearchTool_ServerSide.Repository
             var unmatched = new List<string>();
             var drugBranches = new List<DrugBranch>();
             var newDrugInsurances = new List<DrugInsurance>();
-
+            var newDrug = new List<Drug>();
+            var newClass = new List<DrugClass>();
+            var newClassV2 = new List<DrugClassV2>();
+            var newClassV3 = new List<DrugClassV3>();
             var insuranceBin = await _context.Insurances.FirstOrDefaultAsync(x => x.Bin == "022659");
             if (insuranceBin == null)
             {
                 _context.Insurances.Add(new Insurance
                 {
                     Bin = "022659",
-                    Name = "Medicare"
+                    Name = "Medi-Cal"
                 });
                 await _context.SaveChangesAsync();
                 insuranceBin = await _context.Insurances.FirstOrDefaultAsync(x => x.Bin == "022659");
@@ -315,7 +338,7 @@ namespace SearchTool_ServerSide.Repository
                 {
                     _context.InsurancePCNs.Add(new InsurancePCN
                     {
-                        PCN = "Medicare",
+                        PCN = "Medi-Cal",
                         InsuranceId = insuranceBin.Id
                     });
                     await _context.SaveChangesAsync();
@@ -326,21 +349,125 @@ namespace SearchTool_ServerSide.Repository
                 {
                     _context.InsuranceRxes.Add(new InsuranceRx
                     {
-                        RxGroup = "Medicare",
+                        RxGroup = "Medi-Cal",
                         InsurancePCNId = insurancePcn.Id
                     });
                     await _context.SaveChangesAsync();
                 }
             }
-            var insurance = await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.RxGroup == "Medicare");
+            var insurance = await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.RxGroup == "Medi-Cal");
+            while (reader1.Read())
+            {
+                var productId = NormalizeNdcTo11Digits(reader1.GetValue(0)?.ToString());
+                var labelName = reader1.GetValue(1)?.ToString();
+                if (!existingClass.TryGetValue(labelName, out var drugClass))
+                {
+                    drugClass = new DrugClass
+                    {
+                        Name = labelName
+                    };
+                    newClass.Add(drugClass);
+                    existingClass[labelName] = drugClass;
+                }
+                if (!existingClassV2.TryGetValue(labelName, out var drugClassV2))
+                {
+                    drugClassV2 = new DrugClassV2
+                    {
+                        Name = labelName
+                    };
+                    newClassV2.Add(drugClassV2);
+                    existingClassV2[labelName] = drugClassV2;
+                }
+                if (!existingClassV3.TryGetValue(labelName, out var drugClassV3))
+                {
+                    drugClassV3 = new DrugClassV3
+                    {
+                        Name = labelName
+                    };
+                    newClassV3.Add(drugClassV3);
+                    existingClassV3[labelName] = drugClassV3;
+                }
+            }
+            if (newClass.Any())
+            {
+                await _context.DrugClasses.AddRangeAsync(newClass);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Processed batch of {newClass.Count} drugs at {DateTime.Now}");
+            }
+            if (newClassV2.Any())
+            {
+                await _context.DrugClassV2s.AddRangeAsync(newClassV2);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Processed batch of {newClassV2.Count} drugs at {DateTime.Now}");
+            }
+            if (newClassV3.Any())
+            {
+                await _context.DrugClassV3s.AddRangeAsync(newClassV3);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Processed batch of {newClassV3.Count} drugs at {DateTime.Now}");
+            }
+            rowIndex = 0;
+            // Reset the row index for the main processing loop
+            while (reader2.Read())
+            {
+                rowIndex++;
+                if (rowIndex == 1)
+                    continue;
+                var productId = NormalizeNdcTo11Digits(reader2.GetValue(0)?.ToString());
+                var labelName = reader2.GetValue(1)?.ToString();
+                var priorAuth = reader2.GetValue(3)?.ToString();
+                var extended = reader2.GetValue(4)?.ToString();
+                var CostringTier = reader2.GetValue(5)?.ToString();
+                var NotComp = reader2.GetValue(6)?.ToString();
+                var ccp = reader2.GetValue(7)?.ToString();
+                var insurancePay = reader2.GetValue(8)?.ToString();
+                var unit = reader2.GetValue(9)?.ToString();
+                var dateTime = reader2.GetValue(10)?.ToString();
 
+                if (!existingDrugsByNdc.TryGetValue(productId, out var x))
+                {
+                    var drugClass = existingClass[labelName];
+                    var drugClassV2 = existingClassV2[labelName];
+                    var drugClassV3 = existingClassV3[labelName];
+                    var newDrugItem = new Drug
+                    {
+                        NDC = productId,
+                        Name = labelName,
+                        DrugClassId = drugClass.Id,
+                        DrugClassV2Id = drugClassV2.Id,
+                        DrugClassV3Id = drugClassV3.Id,
+                        Form = "NA",
+                        Strength = "NA",
+                        ACQ = 0,
+                        AWP = 0,
+                        Rxcui = 0,
+                        Route = "NA",
+                        Ingrdient = "NA",
+                        TECode = "NA",
+                        ApplicationNumber = "NA",
+                        ApplicationType = "NA",
+                        StrengthUnit = unit,
+                        Type = "NA"
+                    };
+                    newDrug.Add(newDrugItem);
+                    existingDrugsByNdc[productId] = newDrugItem;
+                }
+
+            }
+            if (newDrug.Any())
+            {
+                await _context.Drugs.AddRangeAsync(newDrug);
+                await _context.SaveChangesAsync();
+                Console.WriteLine($"Processed batch of {newDrug.Count} drugs at {DateTime.Now}");
+            }
+            rowIndex = 0;
             while (reader.Read())
             {
                 rowIndex++;
                 if (rowIndex == 1)
                     continue;
                 var productId = NormalizeNdcTo11Digits(reader.GetValue(0)?.ToString());
-
+                var labelName = reader.GetValue(1)?.ToString();
                 var priorAuth = reader.GetValue(3)?.ToString();
                 var extended = reader.GetValue(4)?.ToString();
                 var CostringTier = reader.GetValue(5)?.ToString();
@@ -349,7 +476,6 @@ namespace SearchTool_ServerSide.Repository
                 var insurancePay = reader.GetValue(8)?.ToString();
                 var unit = reader.GetValue(9)?.ToString();
                 var dateTime = reader.GetValue(10)?.ToString();
-
 
                 if (existingDrugsByNdc.TryGetValue(productId, out var drug))
                 {
@@ -365,6 +491,8 @@ namespace SearchTool_ServerSide.Repository
                             NDCCode = drug.NDC,
                             Net = 0,
                             DrugClassId = drug.DrugClassId,
+                            DrugClassV2Id = drug.DrugClassV2Id,
+                            DrugClassV3Id = drug.DrugClassV3Id,
                             date = dateTime != null
                                 ? (DateTime.TryParseExact(dateTime,
                                                         new[] { "MM-dd-yy", "M/d/yyyy h:mm:ss tt", "yyyy-MM-dd" },
@@ -403,7 +531,7 @@ namespace SearchTool_ServerSide.Repository
                     {
                         // Console.WriteLine($"Adding new DrugMedi for NDC: {drug.Id}");
                         // Console.ReadKey();
-                        var newDrug = new DrugMedi
+                        var newDrugMedei = new DrugMedi
                         {
                             DrugId = drug.Id,
                             DrugNDC = drug.NDC,
@@ -413,7 +541,7 @@ namespace SearchTool_ServerSide.Repository
                             NonCapitatedDrugIndicator = NotComp,
                             CCSPanelAuthority = ccp ?? "NA"
                         };
-                        drugMedis.Add(newDrug);
+                        drugMedis.Add(newDrugMedei);
                     }
                     // Console.WriteLine($"Product ID: {productId}, Prior Auth: {priorAuth} " +
                     //     $", Extended: {extended}, Costring Tier: {CostringTier}, Not Comp: {NotComp}");
@@ -430,6 +558,8 @@ namespace SearchTool_ServerSide.Repository
                 File.WriteAllLines("unmatched.txt", unmatched);
                 Console.WriteLine($"Unmatched NDCs saved to unmatched.txt");
             }
+
+
             if (drugBranches.Any())
             {
                 await _context.DrugBranches.AddRangeAsync(drugBranches);
@@ -448,6 +578,7 @@ namespace SearchTool_ServerSide.Repository
                 await _context.SaveChangesAsync();
                 Console.WriteLine($"Processed batch of {newDrugInsurances.Count} drugs at {DateTime.Now}");
             }
+
             stopwatch.Stop();
             Console.WriteLine($"Finished in {stopwatch.ElapsedMilliseconds} ms");
         }
@@ -963,6 +1094,7 @@ namespace SearchTool_ServerSide.Repository
                             Strength = tempDrug.Strength,
                             DrugClassId = tempDrug.DrugClassId,
                             DrugClassV2Id = tempDrug.DrugClassV2Id,
+                            DrugClassV3Id = tempDrug.DrugClassV3Id,
                             ACQ = record.AcquisitionCost,
                             AWP = 0,
                             Rxcui = tempDrug.Rxcui,
@@ -1117,6 +1249,8 @@ namespace SearchTool_ServerSide.Repository
                         NDCCode = record.NDCCode,
                         Net = netValue,
                         DrugClassId = classItem.Id,
+                        DrugClassV2Id = drug.DrugClassV2Id,
+                        DrugClassV3Id = drug.DrugClassV3Id,
                         date = recordDate,
                         Prescriber = record.Prescriber,
                         Quantity = record.Quantity,
@@ -1177,8 +1311,11 @@ namespace SearchTool_ServerSide.Repository
             // PHASE 3: Process Users and Scripts
             // ========================================================
             // Preload Users, Branches, and Scripts.
-            var userDict = await _context.Users.ToDictionaryAsync(u => u.ShortName);
-            var scriptDict = await _context.Scripts.ToDictionaryAsync(s => s.ScriptCode);
+            var userDict = await _context.Users
+                .GroupBy(u => u.ShortName)
+                .Select(g => g.First())
+                .ToDictionaryAsync(u => u.ShortName);
+                 var scriptDict = await _context.Scripts.ToDictionaryAsync(s => s.ScriptCode);
 
             var newUsers = new List<User>();
             var newScripts = new List<Script>();
@@ -1440,6 +1577,9 @@ namespace SearchTool_ServerSide.Repository
                             pcnId = ipcn.Id,
                             rxgroupId = irx.Id,
                             binId = ins.Id,
+                            DrugClassV2Id = di.Drug.DrugClassV2Id,
+                            DrugClassV3Id = di.Drug.DrugClassV3Id,
+
                         };
 
             var result = await query.FirstOrDefaultAsync();
@@ -1455,7 +1595,8 @@ namespace SearchTool_ServerSide.Repository
             dto.pcnId = result.pcnId;
             dto.rxgroupId = result.rxgroupId;
             dto.binId = result.binId;
-
+            dto.DrugClassV2Id = result.DrugClassV2Id;
+            dto.DrugClassV3Id = result.DrugClassV3Id;
             return dto;
         }
 
@@ -1492,17 +1633,17 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
-        internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
-        {
-            var items = await _context.Drugs
-                 .Where(x => x.DrugClassV2Id == classId)
-                 .GroupBy(x => x.NDC)
-                 .Select(g => g.First())
-                 .ToListAsync();
+        // internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
+        // {
+        //     var items = await _context.Drugs
+        //          .Where(x => x.DrugClassV2Id == classId)
+        //          .GroupBy(x => x.NDC)
+        //          .Select(g => g.First())
+        //          .ToListAsync();
 
 
-            return items;
-        }
+        //     return items;
+        // }
 
 
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
@@ -1597,6 +1738,210 @@ namespace SearchTool_ServerSide.Repository
 
             return result;
         }
+
+
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV3(int classId)
+        {
+            var query = from d in _context.Drugs.Where(d => d.DrugClassV3Id == classId)
+                        join dc in _context.DrugClassV3s on d.DrugClassV3Id equals dc.Id
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassV3Id == classId)
+                            on d.Id equals di.DrugId into diGroup
+                        from di in diGroup.DefaultIfEmpty()
+                        select new { Drug = d, DrugClass = dc, DrugInsurance = di };
+
+            var list = await query.ToListAsync();
+            var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
+
+            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
+            var insuranceRxDict = await _context.InsuranceRxes
+                                                .Include(ir => ir.InsurancePCN)
+                                                    .ThenInclude(ipcn => ipcn.Insurance)
+                                                .ToDictionaryAsync(x => x.Id);
+
+            var result = list.Select(item =>
+            {
+                if (item.DrugInsurance != null)
+                {
+                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
+                    // Override properties from joined tables.
+                    dto.DrugClass = item.DrugClass.Name;
+                    dto.DrugClassId = item.Drug.DrugClassId;
+                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
+                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
+                    dto.DrugName = item.Drug.Name;
+                    dto.NDCCode = item.Drug.NDC;
+
+                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
+                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
+                    {
+                        dto.insuranceName = insuranceRx.RxGroup;
+                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
+                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
+                        dto.pcnId = insuranceRx.InsurancePCN.Id;
+                        dto.rxgroupId = insuranceRx.Id;
+                    }
+                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
+                        dto.branchName = branch.Name;
+
+                    return dto;
+                }
+                else
+                {
+                    // No matching DrugInsurance exists, so create a default instance.
+                    var defaultInsurance = new DrugInsurance
+                    {
+                        DrugId = item.Drug.Id,
+                        NDCCode = item.Drug.NDC,
+                        DrugClassId = item.Drug.DrugClassId,
+                        DrugClassV2Id = item.Drug.DrugClassV2Id,
+                        DrugClassV3Id = item.Drug.DrugClassV3Id,
+                        Net = 0,
+                        date = DateTime.UtcNow,
+                        Prescriber = null,
+                        Quantity = "",
+                        AcquisitionCost = 0,
+                        Discount = 0,
+                        InsurancePayment = 0,
+                        PatientPayment = 0,
+                        BranchId = 1,
+                        InsuranceId = 0,
+                        Drug = item.Drug,
+
+                    };
+
+                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
+                    dto.DrugName = item.Drug.Name;
+                    dto.NDCCode = item.Drug.NDC;
+                    dto.DrugClassId = item.Drug.DrugClassId;
+                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
+                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
+                    dto.DrugClass = item.DrugClass.Name;//for v3 class 
+                    dto.insuranceName = null;
+                    dto.bin = null;
+                    dto.pcn = null;
+                    dto.rxgroup = null;
+                    dto.branchName = null;
+                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                    dto.ApplicationType = item.Drug.ApplicationType;
+                    dto.Route = item.Drug.Route;
+                    dto.Strength = item.Drug.Strength;
+                    dto.Form = item.Drug.Form;
+                    dto.Ingrdient = item.Drug.Ingrdient;
+                    dto.StrengthUnit = item.Drug.StrengthUnit;
+                    dto.Type = item.Drug.Type;
+                    dto.TECode = item.Drug.TECode;
+                    return dto;
+                }
+            }).ToList();
+
+            return result;
+        }
+
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2(int classId)
+        {
+            var query = from d in _context.Drugs.Where(d => d.DrugClassV2Id == classId)
+                        join dc in _context.DrugClassV2s on d.DrugClassV2Id equals dc.Id
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassV2Id == classId)
+                            on d.Id equals di.DrugId into diGroup
+                        from di in diGroup.DefaultIfEmpty()
+                        select new { Drug = d, DrugClass = dc, DrugInsurance = di };
+
+            var list = await query.ToListAsync();
+            var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
+
+            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
+            var insuranceRxDict = await _context.InsuranceRxes
+                                                .Include(ir => ir.InsurancePCN)
+                                                    .ThenInclude(ipcn => ipcn.Insurance)
+                                                .ToDictionaryAsync(x => x.Id);
+
+            var result = list.Select(item =>
+            {
+                if (item.DrugInsurance != null)
+                {
+                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
+                    // Override properties from joined tables.
+                    dto.DrugClass = item.DrugClass.Name;
+                    dto.DrugClassId = item.Drug.DrugClassId;
+                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
+                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
+                    dto.DrugName = item.Drug.Name;
+                    dto.NDCCode = item.Drug.NDC;
+
+                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
+                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
+                    {
+                        dto.insuranceName = insuranceRx.RxGroup;
+                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
+                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
+                        dto.pcnId = insuranceRx.InsurancePCN.Id;
+                        dto.rxgroupId = insuranceRx.Id;
+                    }
+                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
+                        dto.branchName = branch.Name;
+
+                    return dto;
+                }
+                else
+                {
+                    // No matching DrugInsurance exists, so create a default instance.
+                    var defaultInsurance = new DrugInsurance
+                    {
+                        DrugId = item.Drug.Id,
+                        NDCCode = item.Drug.NDC,
+                        DrugClassId = item.Drug.DrugClassId,
+                        DrugClassV2Id = item.Drug.DrugClassV2Id,
+                        DrugClassV3Id = item.Drug.DrugClassV3Id,
+                        Net = 0,
+                        date = DateTime.UtcNow,
+                        Prescriber = null,
+                        Quantity = "",
+                        AcquisitionCost = 0,
+                        Discount = 0,
+                        InsurancePayment = 0,
+                        PatientPayment = 0,
+                        BranchId = 1,
+                        InsuranceId = 0,
+                        Drug = item.Drug,
+
+                    };
+
+                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
+                    dto.DrugName = item.Drug.Name;
+                    dto.NDCCode = item.Drug.NDC;
+                    dto.DrugClassId = item.Drug.DrugClassId;
+                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
+                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
+                    dto.DrugClass = item.DrugClass.Name;//for v3 class 
+                    dto.insuranceName = null;
+                    dto.bin = null;
+                    dto.pcn = null;
+                    dto.rxgroup = null;
+                    dto.branchName = null;
+                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                    dto.ApplicationType = item.Drug.ApplicationType;
+                    dto.Route = item.Drug.Route;
+                    dto.Strength = item.Drug.Strength;
+                    dto.Form = item.Drug.Form;
+                    dto.Ingrdient = item.Drug.Ingrdient;
+                    dto.StrengthUnit = item.Drug.StrengthUnit;
+                    dto.Type = item.Drug.Type;
+                    dto.TECode = item.Drug.TECode;
+                    return dto;
+                }
+            }).ToList();
+
+            return result;
+        }
+
+
+
 
         internal async Task<Drug> GetDrugById(int id)
         {
@@ -1720,12 +2065,14 @@ namespace SearchTool_ServerSide.Repository
             public string? ApplicationNumber { get; set; }
             [Name("Appl_Type")]
             public string? ApplicationType { get; set; }
-            [Name("semiGroup")]
+            [Name("Adjusted_Group_ID")]
             public string? ClassV2 { get; set; }
             [Name("Unit")]
             public string? Unit { get; set; }
             [Name("Type")]
             public string? Type { get; set; }
+            [Name("Group_By_Class_Standardized")]
+            public string? ClassV3 { get; set; }
         }
         internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {
@@ -2222,15 +2569,35 @@ namespace SearchTool_ServerSide.Repository
         internal async Task<ICollection<Drug>> GetDrugsByInsurance(string insurance)
         {
             var drugs = await _context.DrugInsurances
-                .Include(di => di.Drug)       // Ensure the Drug property is loaded
-                .Include(di => di.Insurance)  // Ensure the Insurance property is loaded
+                .Include(di => di.Drug)
+                .Include(di => di.Insurance)
                 .Where(di => di.Insurance != null && di.Insurance.RxGroup.ToLower() == insurance.ToLower())
                 .Select(di => di.Drug)
-                .Distinct()                 // Avoid duplicate drugs if there are multiple records
+                .Distinct()
                 .ToListAsync();
 
             return drugs;
         }
+        // ...existing code...
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNameDrugName(string insurance, string drugName, int pageSize = 1000, int pageNumber = 1)
+        {
+            Console.WriteLine($"Searching for drugs with insurance: {insurance} and drug name: {drugName} on page {pageNumber} with page size {pageSize}");
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug)
+                .Include(di => di.Insurance)
+                .Where(di => di.Insurance != null && di.Insurance.RxGroup.ToLower() == insurance.ToLower() &&
+                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
+                .Select(di => di.Drug)
+                .Distinct()
+                .OrderBy(d => d.Id) // Ensure deterministic ordering for paging
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return drugs;
+        }
+        // ...existing code...
+
         internal async Task<ICollection<Drug>> GetDrugsByPCN(string pcn)
         {
             var drugs = await _context.DrugInsurances
@@ -2398,6 +2765,51 @@ namespace SearchTool_ServerSide.Repository
             }).ToList();
             return result;
 
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug)
+                .Include(di => di.Insurance)
+                .Where(di => di.Insurance != null && di.Insurance.RxGroup.ToLower() == insurance.ToLower() &&
+                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
+                .Select(di => di.Drug)
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return drugs;
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug)
+                .Include(di => di.Insurance.InsurancePCN)
+                .Where(di => di.Insurance != null && di.Insurance.InsurancePCN.PCN.ToLower() == insurance.ToLower() &&
+                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
+                .Select(di => di.Drug)
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return drugs;
+        }
+        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug)
+                .Include(di => di.Insurance.InsurancePCN.Insurance)
+                .Where(di => di.Insurance != null && di.Insurance.InsurancePCN.Insurance.Bin.ToLower() == insurance.ToLower() &&
+                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
+                .Select(di => di.Drug)
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return drugs;
         }
     }
     // public sealed class InsuranceMap : ClassMap<Insurance>
