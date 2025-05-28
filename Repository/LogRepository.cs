@@ -46,5 +46,47 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
+        internal async Task InsertAllLogsToDB(IEnumerable<Log> logs)
+        {
+            // Build a lookup for existing logs by (UserId, Date)
+            var existingLogs = await _context.Logs
+                .Select(l => new { l.Id, l.UserId, l.Date })
+                .ToListAsync();
+
+            var logLookup = existingLogs.ToDictionary(
+                l => (l.UserId, l.Date), l => l.Id);
+
+            int skipped = 0, inserted = 0, updated = 0;
+
+            foreach (var log in logs)
+            {
+                if (log.UserId == 0 || log.Date == default)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var key = (log.UserId, log.Date);
+
+                if (logLookup.TryGetValue(key, out int existingLogId))
+                {
+                    // Update existing log (do not update Id)
+                    var existing = await _context.Logs.FindAsync(existingLogId);
+                    if (existing != null)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    // New log: reset Id to avoid PK conflict
+                    log.Id = 0;
+                    await _context.Logs.AddAsync(log);
+                    inserted++;
+                }
+            }
+            await _context.SaveChangesAsync();
+            // Optionally: log or return stats
+        }
     }
 }

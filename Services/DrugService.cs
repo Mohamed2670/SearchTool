@@ -26,6 +26,12 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
+        public async Task<ICollection<Drug>> GetClassesByName(string name, int pageNumber, int pageSize)
+        {
+            var items = await _drugRepository.GetClassesByName(name, pageNumber, pageSize);
+            return items;
+        }
+
         // public async Task<ICollection<Insurance>> GetDrugInsurances(string name)
         // {
         //     var items = await _drugRepository.GetDrugInsurances(name);
@@ -266,17 +272,35 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByInsuranceNamePagintated(insurance,drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByInsuranceNamePagintated(insurance, drugName, pageSize, pageNumber);
         }
-        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByPCNPagintated(insurance,drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByPCNPagintated(insurance, drugName, pageSize, pageNumber);
         }
-        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance,string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByBINPagintated(insurance,drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugClassesByInsuranceNamePagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var items = await _drugRepository.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber);
+            return items;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var items = await _drugRepository.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber);
+            return items;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var items = await _drugRepository.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber);
+            return items;
         }
     }
 }

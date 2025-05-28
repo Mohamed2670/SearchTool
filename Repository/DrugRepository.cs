@@ -47,6 +47,18 @@ namespace SearchTool_ServerSide.Repository
                 .ToListAsync();
             return items;
         }
+        public async Task<ICollection<Drug>> GetClassesByName(string name, int pageNumber, int pageSize = 20)
+        {
+            var items = await _context.Drugs
+                .Include(di => di.DrugClass)
+                .Where(x => x.DrugClass.Name.ToLower().Contains(name.ToLower()))
+                .GroupBy(x => x.DrugClass.Name.ToLower())
+                .Select(g => g.First())
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return items;
+        }
 
 
         public async Task<ICollection<string>> GetAllNDCByDrugName(string name)
@@ -1315,7 +1327,7 @@ namespace SearchTool_ServerSide.Repository
                 .GroupBy(u => u.ShortName)
                 .Select(g => g.First())
                 .ToDictionaryAsync(u => u.ShortName);
-                 var scriptDict = await _context.Scripts.ToDictionaryAsync(s => s.ScriptCode);
+            var scriptDict = await _context.Scripts.ToDictionaryAsync(s => s.ScriptCode);
 
             var newUsers = new List<User>();
             var newScripts = new List<Script>();
@@ -2809,6 +2821,58 @@ namespace SearchTool_ServerSide.Repository
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
+            return drugs;
+        }
+
+        internal async Task<ICollection<Drug>> GetDrugClassesByInsuranceNamePagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var drugClasses = await _context.DrugInsurances
+                .Include(di => di.Drug.DrugClass)
+                .Include(di => di.Insurance)
+                .Where(di => di.Insurance != null && di.Insurance.RxGroup.ToLower() == insurance.ToLower() &&
+                             di.Drug.DrugClass.Name.ToLower().Contains(drugClassName.ToLower()))
+                .Select(di => di.Drug)
+                .GroupBy(d => d.DrugClassId)
+                .Select(g => g.First())
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return drugClasses;
+        }
+        internal async Task<ICollection<Drug>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug.DrugClass)
+                .Include(di => di.Insurance.InsurancePCN)
+                .Where(di => di.Insurance != null && di.Insurance.InsurancePCN.PCN.ToLower() == insurance.ToLower() &&
+                             di.Drug.DrugClass.Name.ToLower().Contains(drugClassName.ToLower()))
+                .Select(di => di.Drug)
+                .GroupBy(d => d.DrugClassId)
+                .Select(g => g.First())
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return drugs;
+        }
+        internal async Task<ICollection<Drug>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        {
+            var drugs = await _context.DrugInsurances
+                .Include(di => di.Drug.DrugClass)
+                .Include(di => di.Insurance.InsurancePCN.Insurance)
+                .Where(di => di.Insurance != null &&
+                             di.Insurance.InsurancePCN.Insurance.Bin.ToLower() == insurance.ToLower() &&
+                             di.Drug.DrugClass.Name.ToLower().Contains(drugClassName.ToLower()))
+                .Select(di => di.Drug)
+                .GroupBy(d => d.DrugClassId)
+                .Select(g => g.First())
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
             return drugs;
         }
     }

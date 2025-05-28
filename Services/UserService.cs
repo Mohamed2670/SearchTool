@@ -142,5 +142,11 @@ namespace SearchTool_ServerSide.Services
             var users = await _userRepository.GetAll();
             return users;
         }
+
+        internal async Task AddAllUserData(IEnumerable<AllUserAddDto> items)
+        {
+            var users = _mapper.Map<IEnumerable<User>>(items);
+            await _userRepository.AddAllUserData(users);
+        }
     }
 }

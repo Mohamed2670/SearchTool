@@ -149,15 +149,22 @@ namespace SearchTool_ServerSide.Controllers
             var users = await _userService.GetAllUser();
             return Ok(users);
         }
-        [HttpGet("allCrid"),Authorize(Policy = "SuperAdmin"),Authorize]
+        [HttpGet("allCrid"),AllowAnonymous]
         public async Task<IActionResult> GetAllUserCrid()
         {
             var users = await _userService.GetAllUserCrid();
             return Ok(users);
         }
+        [HttpPost("InsertUserData"), AllowAnonymous]
+        public async Task<IActionResult> InsertUserData([FromBody]IEnumerable<AllUserAddDto> Items)
+        {
+            await _userService.AddAllUserData(Items);
+            return Ok("Users Added successfully to DataBase :)");
+        }
         [HttpGet("Logout")]
         public IActionResult LogOut()
         {
+            
             return Ok("LogOut Success");
         }
 

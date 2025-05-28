@@ -44,6 +44,13 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.SearchName(name, pageNumber, pageSize);
             return Ok(items);
         }
+        [HttpGet("GetClassesByName"),AllowAnonymous]
+        public async Task<IActionResult> GetClassesByName([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
+        {
+            // Console.WriteLine("Name: " + name+" PageNumber: " + pageNumber + " PageSize: " + pageSize);
+            var items = await _drugService.GetClassesByName(name, pageNumber, pageSize);
+            return Ok(items);
+        }
 
         [HttpGet("SearchByIdNdc")]
         public async Task<IActionResult> SearchByIdNdc([FromQuery] int id, [FromQuery] string ndc)
@@ -324,6 +331,25 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> GetAllMediDrugs([FromQuery] int classId)
         {
             var items = await _drugService.GetAllMediDrugs(classId);
+            return Ok(items);
+        }
+
+        [HttpGet("GetDrugClassesByInsuranceNamePagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugClassesByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugClassesByPCNPagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugClassesByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber);
+            return Ok(items);
+        }
+        [HttpGet("GetDrugClassesByBINPagintated"), AllowAnonymous]
+        public async Task<IActionResult> GetDrugClassesByBINPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        {
+            var items = await _drugService.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber);
             return Ok(items);
         }
 
