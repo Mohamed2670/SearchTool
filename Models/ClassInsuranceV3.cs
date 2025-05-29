@@ -5,7 +5,7 @@ namespace SearchTool_ServerSide.Models
     public class ClassInsuranceV3 : IEntity 
     {
         public int InsuranceId { get; set; }
-        public int ClassV3Id { get; set; }
+        public int DrugClassV3Id { get; set; }
         public DateTime Date { get; set; }
         public int BranchId { get; set;}
         

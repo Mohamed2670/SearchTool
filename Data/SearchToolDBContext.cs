@@ -7,7 +7,7 @@ namespace SearchTool_ServerSide.Data
     public class GlobalDBContext : DbContext
     {
         public GlobalDBContext(DbContextOptions<GlobalDBContext> options) : base(options) { }
-         public DbSet<Drug> Drugs { get; set; }
+        public DbSet<Drug> Drugs { get; set; }
         public DbSet<DrugClass> DrugClasses { get; set; }
         public DbSet<DrugInsurance> DrugInsurances { get; set; }
         public DbSet<Insurance> Insurances { get; set; }
@@ -22,7 +22,7 @@ namespace SearchTool_ServerSide.Data
         public DbSet<InsuranceRx> InsuranceRxes { get; set; }
         public DbSet<InsurancePCN> InsurancePCNs { get; set; }
         public DbSet<Log> Logs { get; set; }
-        public DbSet<SearchLog>SearchLogs { get; set; }
+        public DbSet<SearchLog> SearchLogs { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
 
@@ -90,6 +90,10 @@ namespace SearchTool_ServerSide.Data
         public DbSet<Script> Scripts { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<ClassInsurance> ClassInsurances { get; set; }
+        public DbSet<ClassInsuranceV2> ClassInsuranceV2s { get; set; }
+
+        public DbSet<ClassInsuranceV3> ClassInsuranceV3s { get; set; }
+
         public DbSet<ScriptItem> ScriptItems { get; set; }
         public DbSet<Branch> Branches { get; set; }
         public DbSet<DrugBranch> DrugBranches { get; set; }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SearchTool_ServerSide.Data;
@@ -11,9 +12,11 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    partial class SearchToolDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250529155655_InitialCreate4")]
+    partial class InitialCreate4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -222,6 +225,9 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("ClassV2Id")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone");
 
@@ -275,6 +281,9 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<string>("ClassName")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("ClassV3Id")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone");
