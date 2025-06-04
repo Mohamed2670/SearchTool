@@ -110,11 +110,11 @@ namespace SearchTool_ServerSide.Services
             Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;
         }
-        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000)
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000,int classVersion = 1)
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-            var items = await _drugRepository.GetAllLatestScriptsPaginated(page, pageSize);
+            var items = await _drugRepository.GetAllLatestScriptsPaginated(page, pageSize,classVersion);
             stopwatch.Stop();
             Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;

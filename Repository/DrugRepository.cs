@@ -499,7 +499,7 @@ namespace SearchTool_ServerSide.Repository
                         {
                             InsuranceId = insurance.Id,
                             DrugId = drug.Id,
-                            BranchId = 1,
+                            BranchId = 6,
                             NDCCode = drug.NDC,
                             Net = 0,
                             DrugClassId = drug.DrugClassId,
@@ -519,7 +519,7 @@ namespace SearchTool_ServerSide.Repository
                             AcquisitionCost = 0,
                             Discount = 0,
                             InsurancePayment = insurancePay != null
-                                ? (decimal.Parse(insurancePay) * 0.9m + 10.0m)
+                                ? (decimal.Parse(insurancePay) * 0.9m )
                                 : 0m,
                             PatientPayment = 0,
                         };
@@ -534,7 +534,7 @@ namespace SearchTool_ServerSide.Repository
                     {
                         var newDrugBranch = new DrugBranch
                         {
-                            BranchId = 1,
+                            BranchId = 6,
                             DrugId = drug.Id
                         };
                         drugBranches.Add(newDrugBranch);
@@ -2263,33 +2263,87 @@ namespace SearchTool_ServerSide.Repository
 
 
 
-        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize)
+        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, int classVersion = 1)
         {
-            // Use a constant cache key for the entire dataset.
-            const string cacheKey = "AllLatestScripts";
-            List<AuditReadDto> allData;
-
-            // Attempt to get the dataset from cache.
-            if (!_cache.TryGetValue(cacheKey, out allData))
+            if (classVersion == 1)
             {
-                // Cache miss: load the entire dataset from the database.
-                allData = await LoadAllLatestScriptsFromDatabaseAsync();
+                // Use a constant cache key for the entire dataset.
+                const string cacheKey = "AllLatestScripts";
+                List<AuditReadDto> allData;
 
-                // Set up cache options. Adjust the expiration as necessary.
-                var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(120));
+                // Attempt to get the dataset from cache.
+                if (!_cache.TryGetValue(cacheKey, out allData))
+                {
+                    // Cache miss: load the entire dataset from the database.
+                    allData = await LoadAllLatestScriptsFromDatabaseAsync();
 
-                // Store the full dataset in cache.
-                _cache.Set(cacheKey, allData, cacheOptions);
+                    // Set up cache options. Adjust the expiration as necessary.
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(120));
+
+                    // Store the full dataset in cache.
+                    _cache.Set(cacheKey, allData, cacheOptions);
+                }
+                // Paginate the data from the cache.
+                var pagedData = allData
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                return pagedData;
             }
+            else if (classVersion == 2)
+            {
+                const string cacheKey = "AllLatestScriptsV2";
+                List<AuditReadDto> allData;
 
-            // Paginate the data from the cache.
-            var pagedData = allData
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+                // Attempt to get the dataset from cache.
+                if (!_cache.TryGetValue(cacheKey, out allData))
+                {
+                    // Cache miss: load the entire dataset from the database.
+                    allData = await LoadAllLatestScriptsV2FromDatabaseAsync();
 
-            return pagedData;
+                    // Set up cache options. Adjust the expiration as necessary.
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(120));
+
+                    // Store the full dataset in cache.
+                    _cache.Set(cacheKey, allData, cacheOptions);
+                }
+                // Paginate the data from the cache.
+                var pagedData = allData
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                return pagedData;
+            }
+            else
+            {
+                const string cacheKey = "AllLatestScriptsV3";
+                List<AuditReadDto> allData;
+
+                // Attempt to get the dataset from cache.
+                if (!_cache.TryGetValue(cacheKey, out allData))
+                {
+                    // Cache miss: load the entire dataset from the database.
+                    allData = await LoadAllLatestScriptsV3FromDatabaseAsync();
+
+                    // Set up cache options. Adjust the expiration as necessary.
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetSlidingExpiration(TimeSpan.FromMinutes(120));
+
+                    // Store the full dataset in cache.
+                    _cache.Set(cacheKey, allData, cacheOptions);
+                }
+                // Paginate the data from the cache.
+                var pagedData = allData
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToList();
+
+                return pagedData;
+            }
         }
         public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
         {
@@ -2323,26 +2377,33 @@ namespace SearchTool_ServerSide.Repository
             var auditData = await (
                 from script in _context.Scripts
                 join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
-                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id
-                join classItem in _context.DrugClasses on scriptItem.DrugClassId equals classItem.Id
-                join branch in _context.Branches on script.BranchId equals branch.Id
+                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id into insuranceGroup
+                from insurance in insuranceGroup.DefaultIfEmpty()
+                join classItem in _context.DrugClasses on scriptItem.DrugClassId equals classItem.Id into classGroup
+                from classItem in classGroup.DefaultIfEmpty()
+                join branch in _context.Branches on script.BranchId equals branch.Id into branchGroup
+                from branch in branchGroup.DefaultIfEmpty()
                 join classInsurance in _context.ClassInsurances
-                    on new { InsuranceId = insurance.Id, ClassId = classItem.Id, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch.Id }
-                    equals new { classInsurance.InsuranceId, classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, classInsurance.BranchId }
-                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id
-                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id
+                    on new { InsuranceId = insurance != null ? (int?)insurance.Id : null, ClassId = classItem != null ? (int?)classItem.Id : null, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch != null ? (int?)branch.Id : null }
+                    equals new { InsuranceId = (int?)classInsurance.InsuranceId, ClassId = (int?)classInsurance.ClassId, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, BranchId = (int?)classInsurance.BranchId }
+                    into classInsuranceGroup
+                from classInsurance in classInsuranceGroup.DefaultIfEmpty()
+                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id into scriptDrugGroup
+                from scriptDrug in scriptDrugGroup.DefaultIfEmpty()
+                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id into bestDrugGroup
+                from bestDrug in bestDrugGroup.DefaultIfEmpty()
                 join user in _context.Users on script.UserId equals user.Id into userGroup
                 from user in userGroup.DefaultIfEmpty()
                 join prescriber in _context.Users on scriptItem.PrescriberId equals prescriber.Id into prescriberGroup
                 from prescriber in prescriberGroup.DefaultIfEmpty()
                 let prevMonth = script.Date.AddMonths(-1)
                 let bestNetEntryPrevMonth = _context.ClassInsurances
-                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.ClassId == (classItem != null ? classItem.Id : 0) &&
                                  ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
                 let bestNetEntryCurrentMonth = _context.ClassInsurances
-                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.ClassId == (classItem != null ? classItem.Id : 0) &&
                                  ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
@@ -2353,16 +2414,15 @@ namespace SearchTool_ServerSide.Repository
                     ScriptCode = script.ScriptCode,
                     RxNumber = scriptItem.RxNumber,
                     User = user != null ? user.Name : "Unknown",
-                    DrugName = scriptDrug.Name,
-                    NDCCode = scriptDrug.NDC,
-                    DrugId = scriptDrug.Id,
-                    HighstDrugName = bestDrug.Name,
-                    HighstDrugNDC = bestDrug.NDC,
-                    HighstDrugId = bestDrug.Id,
-                    BranchCode = branch.Name,
-                    Insurance = insurance.RxGroup,
-                    InsuranceId = insurance.Id,
-
+                    DrugName = scriptDrug != null ? scriptDrug.Name : null,
+                    NDCCode = scriptDrug != null ? scriptDrug.NDC : null,
+                    DrugId = scriptDrug != null ? scriptDrug.Id : 0,
+                    HighstDrugName = bestDrug != null ? bestDrug.Name : null,
+                    HighstDrugNDC = bestDrug != null ? bestDrug.NDC : null,
+                    HighstDrugId = bestDrug != null ? bestDrug.Id : 0,
+                    BranchCode = branch != null ? branch.Name : null,
+                    Insurance = insurance != null ? insurance.RxGroup : null,
+                    InsuranceId = insurance != null ? insurance.Id : 0,
                     PF = scriptItem.PF,
                     Prescriber = prescriber != null ? prescriber.Name : "Unknown",
                     Quantity = scriptItem.Quantity,
@@ -2371,41 +2431,47 @@ namespace SearchTool_ServerSide.Repository
                     InsurancePayment = scriptItem.InsurancePayment,
                     PatientPayment = scriptItem.PatientPayment,
                     NetProfit = scriptItem.NetProfit,
-                    DrugClass = classItem.Name,
-                    HighstNet = bestNetEntry.BestNet,
-                    HighstScriptCode = bestNetEntry.ScriptCode,
-                    HighstScriptDate = bestNetEntry.ScriptDateTime
+                    DrugClass = classItem != null ? classItem.Name : null,
+                    HighstNet = bestNetEntry != null ? bestNetEntry.BestNet : 0,
+                    HighstScriptCode = bestNetEntry != null ? bestNetEntry.ScriptCode : null,
+                    HighstScriptDate = bestNetEntry != null ? bestNetEntry.ScriptDateTime : DateTime.MinValue
                 }).ToListAsync();
 
             return auditData;
         }
-
 
         private async Task<List<AuditReadDto>> LoadAllLatestScriptsV2FromDatabaseAsync()
         {
             var auditData = await (
                 from script in _context.Scripts
                 join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
-                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id
-                join classItem in _context.DrugClassV2s on scriptItem.Drug.DrugClassV2Id equals classItem.Id
-                join branch in _context.Branches on script.BranchId equals branch.Id
+                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id into insuranceGroup
+                from insurance in insuranceGroup.DefaultIfEmpty()
+                join classItem in _context.DrugClassV2s on scriptItem.Drug.DrugClassV2Id equals classItem.Id into classGroup
+                from classItem in classGroup.DefaultIfEmpty()
+                join branch in _context.Branches on script.BranchId equals branch.Id into branchGroup
+                from branch in branchGroup.DefaultIfEmpty()
                 join classInsurance in _context.ClassInsuranceV2s
-                    on new { InsuranceId = insurance.Id, DrugClassV2Id = classItem.Id, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch.Id }
-                    equals new { classInsurance.InsuranceId, classInsurance.DrugClassV2Id, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, classInsurance.BranchId }
-                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id
-                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id
+                    on new { InsuranceId = insurance != null ? (int?)insurance.Id : null, DrugClassV2Id = classItem != null ? (int?)classItem.Id : null, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch != null ? (int?)branch.Id : null }
+                    equals new { InsuranceId = (int?)classInsurance.InsuranceId, DrugClassV2Id = (int?)classInsurance.DrugClassV2Id, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, BranchId = (int?)classInsurance.BranchId }
+                    into classInsuranceGroup
+                from classInsurance in classInsuranceGroup.DefaultIfEmpty()
+                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id into scriptDrugGroup
+                from scriptDrug in scriptDrugGroup.DefaultIfEmpty()
+                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id into bestDrugGroup
+                from bestDrug in bestDrugGroup.DefaultIfEmpty()
                 join user in _context.Users on script.UserId equals user.Id into userGroup
                 from user in userGroup.DefaultIfEmpty()
                 join prescriber in _context.Users on scriptItem.PrescriberId equals prescriber.Id into prescriberGroup
                 from prescriber in prescriberGroup.DefaultIfEmpty()
                 let prevMonth = script.Date.AddMonths(-1)
-                let bestNetEntryPrevMonth = _context.ClassInsurances
-                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                let bestNetEntryPrevMonth = _context.ClassInsuranceV2s
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.DrugClassV2Id == (classItem != null ? classItem.Id : 0) &&
                                  ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
-                let bestNetEntryCurrentMonth = _context.ClassInsurances
-                    .Where(ci => ci.InsuranceId == insurance.Id && ci.ClassId == classItem.Id &&
+                let bestNetEntryCurrentMonth = _context.ClassInsuranceV2s
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.DrugClassV2Id == (classItem != null ? classItem.Id : 0) &&
                                  ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
@@ -2416,16 +2482,15 @@ namespace SearchTool_ServerSide.Repository
                     ScriptCode = script.ScriptCode,
                     RxNumber = scriptItem.RxNumber,
                     User = user != null ? user.Name : "Unknown",
-                    DrugName = scriptDrug.Name,
-                    NDCCode = scriptDrug.NDC,
-                    DrugId = scriptDrug.Id,
-                    HighstDrugName = bestDrug.Name,
-                    HighstDrugNDC = bestDrug.NDC,
-                    HighstDrugId = bestDrug.Id,
-                    BranchCode = branch.Name,
-                    Insurance = insurance.RxGroup,
-                    InsuranceId = insurance.Id,
-
+                    DrugName = scriptDrug != null ? scriptDrug.Name : null,
+                    NDCCode = scriptDrug != null ? scriptDrug.NDC : null,
+                    DrugId = scriptDrug != null ? scriptDrug.Id : 0,
+                    HighstDrugName = bestDrug != null ? bestDrug.Name : null,
+                    HighstDrugNDC = bestDrug != null ? bestDrug.NDC : null,
+                    HighstDrugId = bestDrug != null ? bestDrug.Id : 0,
+                    BranchCode = branch != null ? branch.Name : null,
+                    Insurance = insurance != null ? insurance.RxGroup : null,
+                    InsuranceId = insurance != null ? insurance.Id : 0,
                     PF = scriptItem.PF,
                     Prescriber = prescriber != null ? prescriber.Name : "Unknown",
                     Quantity = scriptItem.Quantity,
@@ -2434,18 +2499,81 @@ namespace SearchTool_ServerSide.Repository
                     InsurancePayment = scriptItem.InsurancePayment,
                     PatientPayment = scriptItem.PatientPayment,
                     NetProfit = scriptItem.NetProfit,
-                    DrugClass = bestDrug.DrugClassV2.Name,
-                    HighstNet = bestNetEntry.BestNet,
-                    HighstScriptCode = bestNetEntry.ScriptCode,
-                    HighstScriptDate = bestNetEntry.ScriptDateTime
+                    DrugClass = classItem != null ? classItem.Name : null,
+                    HighstNet = bestNetEntry != null ? bestNetEntry.BestNet : 0,
+                    HighstScriptCode = bestNetEntry != null ? bestNetEntry.ScriptCode : null,
+                    HighstScriptDate = bestNetEntry != null ? bestNetEntry.ScriptDateTime : DateTime.MinValue
                 }).ToListAsync();
 
             return auditData;
         }
+        private async Task<List<AuditReadDto>> LoadAllLatestScriptsV3FromDatabaseAsync()
+        {
+            var auditData = await (
+                from script in _context.Scripts
+                join scriptItem in _context.ScriptItems on script.Id equals scriptItem.ScriptId
+                join insurance in _context.InsuranceRxes on scriptItem.InsuranceId equals insurance.Id into insuranceGroup
+                from insurance in insuranceGroup.DefaultIfEmpty()
+                join classItem in _context.DrugClassV3s on scriptItem.Drug.DrugClassV3Id equals classItem.Id into classGroup
+                from classItem in classGroup.DefaultIfEmpty()
+                join branch in _context.Branches on script.BranchId equals branch.Id into branchGroup
+                from branch in branchGroup.DefaultIfEmpty()
+                join classInsurance in _context.ClassInsuranceV3s
+                    on new { InsuranceId = insurance != null ? (int?)insurance.Id : null, DrugClassV3Id = classItem != null ? (int?)classItem.Id : null, Year = script.Date.Year, Month = script.Date.Month, BranchId = branch != null ? (int?)branch.Id : null }
+                    equals new { InsuranceId = (int?)classInsurance.InsuranceId, DrugClassV3Id = (int?)classInsurance.DrugClassV3Id, Year = classInsurance.Date.Year, Month = classInsurance.Date.Month, BranchId = (int?)classInsurance.BranchId }
+                    into classInsuranceGroup
+                from classInsurance in classInsuranceGroup.DefaultIfEmpty()
+                join scriptDrug in _context.Drugs on scriptItem.DrugId equals scriptDrug.Id into scriptDrugGroup
+                from scriptDrug in scriptDrugGroup.DefaultIfEmpty()
+                join bestDrug in _context.Drugs on classInsurance.DrugId equals bestDrug.Id into bestDrugGroup
+                from bestDrug in bestDrugGroup.DefaultIfEmpty()
+                join user in _context.Users on script.UserId equals user.Id into userGroup
+                from user in userGroup.DefaultIfEmpty()
+                join prescriber in _context.Users on scriptItem.PrescriberId equals prescriber.Id into prescriberGroup
+                from prescriber in prescriberGroup.DefaultIfEmpty()
+                let prevMonth = script.Date.AddMonths(-1)
+                let bestNetEntryPrevMonth = _context.ClassInsuranceV3s
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.DrugClassV3Id == (classItem != null ? classItem.Id : 0) &&
+                                 ci.Date.Year == prevMonth.Year && ci.Date.Month == prevMonth.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
+                let bestNetEntryCurrentMonth = _context.ClassInsuranceV3s
+                    .Where(ci => ci.InsuranceId == (insurance != null ? insurance.Id : 0) && ci.DrugClassV3Id == (classItem != null ? classItem.Id : 0) &&
+                                 ci.Date.Year == script.Date.Year && ci.Date.Month == script.Date.Month)
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault()
+                let bestNetEntry = bestNetEntryPrevMonth ?? bestNetEntryCurrentMonth
+                select new AuditReadDto
+                {
+                    Date = script.Date,
+                    ScriptCode = script.ScriptCode,
+                    RxNumber = scriptItem.RxNumber,
+                    User = user != null ? user.Name : "Unknown",
+                    DrugName = scriptDrug != null ? scriptDrug.Name : null,
+                    NDCCode = scriptDrug != null ? scriptDrug.NDC : null,
+                    DrugId = scriptDrug != null ? scriptDrug.Id : 0,
+                    HighstDrugName = bestDrug != null ? bestDrug.Name : null,
+                    HighstDrugNDC = bestDrug != null ? bestDrug.NDC : null,
+                    HighstDrugId = bestDrug != null ? bestDrug.Id : 0,
+                    BranchCode = branch != null ? branch.Name : null,
+                    Insurance = insurance != null ? insurance.RxGroup : null,
+                    InsuranceId = insurance != null ? insurance.Id : 0,
+                    PF = scriptItem.PF,
+                    Prescriber = prescriber != null ? prescriber.Name : "Unknown",
+                    Quantity = scriptItem.Quantity,
+                    AcquisitionCost = scriptItem.AcquisitionCost,
+                    Discount = scriptItem.Discount,
+                    InsurancePayment = scriptItem.InsurancePayment,
+                    PatientPayment = scriptItem.PatientPayment,
+                    NetProfit = scriptItem.NetProfit,
+                    DrugClass = classItem != null ? classItem.Name : null,
+                    HighstNet = bestNetEntry != null ? bestNetEntry.BestNet : 0,
+                    HighstScriptCode = bestNetEntry != null ? bestNetEntry.ScriptCode : null,
+                    HighstScriptDate = bestNetEntry != null ? bestNetEntry.ScriptDateTime : DateTime.MinValue
+                }).ToListAsync();
 
-
-
-
+            return auditData;
+        }
 
 
 

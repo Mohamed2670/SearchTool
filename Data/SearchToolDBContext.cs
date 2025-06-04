@@ -147,15 +147,16 @@ namespace SearchTool_ServerSide.Data
                       );
             // Seed Data for Branches
             modelBuilder.Entity<MainCompany>().HasData(
-               new { Id = 1, Name = "California Dermatology", SpecialtyId = 1 }
-
+               new { Id = 1, Name = "California Dermatology", SpecialtyId = 1 },
+               new { Id = 2, Name = "Spark Medi-Cal", SpecialtyId = 1 }
            );
             modelBuilder.Entity<Branch>().HasData(
                 new Branch { Id = 1, Name = "California Dermatology Institute Thousand Oaks", Location = "Thousand Oaks", Code = "1", MainCompanyId = 1 },
                 new Branch { Id = 2, Name = "California Dermatology Institute Northridge", Location = "Northridge", Code = "2", MainCompanyId = 1 },
                 new Branch { Id = 3, Name = "California Dermatology Institute Huntington Park", Location = "Huntington Park", Code = "3", MainCompanyId = 1 },
                 new Branch { Id = 4, Name = "California Dermatology Institute Palmdale", Location = "Palmdale", Code = "4", MainCompanyId = 1 },
-                new Branch { Id = 5, Name = "VIRTUAL", Location = "VIRTUAL", Code = "5", MainCompanyId = 1 }
+                new Branch { Id = 5, Name = "VIRTUAL", Location = "VIRTUAL", Code = "5", MainCompanyId = 1 },
+                new Branch { Id = 6, Name = "ASP", Location = "VIRTUAL", Code = "6", MainCompanyId = 2 }
 
             );
         }

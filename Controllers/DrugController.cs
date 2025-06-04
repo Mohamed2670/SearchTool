@@ -287,9 +287,9 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin"), Authorize]
-        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize)
+        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize,[FromQuery]int classVersion = 1)
         {
-            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize);
+            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize,classVersion);
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginatedv2"), Authorize]

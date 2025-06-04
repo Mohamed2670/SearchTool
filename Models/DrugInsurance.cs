@@ -13,6 +13,7 @@ namespace SearchTool_ServerSide.Models
         public int DrugClassV2Id { get; set; }
 
         public int DrugClassV3Id { get; set; }
+        public string? ScriptCode { get; set; }
 
         public decimal Net { get; set; }
         public DateTime date { get; set; }

@@ -37,6 +37,7 @@ namespace SearchTool_ServerSide.Services
                         // Console.WriteLine($"RxgroupId is {orderItem.InsuranceRxId}, skipping this order item.");
                         // Console.ReadKey();
                         orderItem.OrderId = oreder.Id;
+
                         await _orderItemRepository.Add(orderItem);
                         var searchLog = _mapper.Map<SearchLog>(searchLogAddDto);
                         // if (searchLog.RxgroupId == 0)

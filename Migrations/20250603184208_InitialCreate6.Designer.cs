@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SearchTool_ServerSide.Data;
@@ -11,9 +12,11 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    partial class SearchToolDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250603184208_InitialCreate6")]
+    partial class InitialCreate6
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -159,7 +162,7 @@ namespace SearchTool_ServerSide.Migrations
                             Code = "6",
                             Location = "VIRTUAL",
                             MainCompanyId = 2,
-                            Name = "ASP"
+                            Name = "VIRTUAL"
                         });
                 });
 
@@ -509,9 +512,6 @@ namespace SearchTool_ServerSide.Migrations
 
                     b.Property<string>("Quantity")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ScriptCode")
                         .HasColumnType("text");
 
                     b.Property<DateTime>("date")
