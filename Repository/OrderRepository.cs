@@ -15,11 +15,11 @@ namespace SearchTool_ServerSide.Repository
             _mapper = mapper;
         }
 
-        internal async Task<IEnumerable<Order>> GetAllOrdersByUserId(int userId)
+        internal async Task<IEnumerable<Order>> GetAllOrdersByUserId(string UserEmail)
         {
             var orders = await _context.Orders
                 .Include(o => o.OrderItems)
-                .Where(o => o.UserId == userId)
+                .Where(o => o.UserEmail == UserEmail)
                 .ToListAsync();
 
 

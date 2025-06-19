@@ -2,7 +2,7 @@ namespace SearchTool_ServerSide.Dtos.OrderItemDtos
 {
     public class OrderItemAddDto
     {
-        public int DrugId { get; set; }
+        public string DrugNDC { get; set; }
         public decimal NetPrice { get; set; }
         public decimal PatientPay { get; set; }
         public decimal InsurancePay { get; set; }

@@ -44,7 +44,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.SearchName(name, pageNumber, pageSize);
             return Ok(items);
         }
-        [HttpGet("GetClassesByName"),AllowAnonymous]
+        [HttpGet("GetClassesByName"), AllowAnonymous]
         public async Task<IActionResult> GetClassesByName([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
             // Console.WriteLine("Name: " + name+" PageNumber: " + pageNumber + " PageSize: " + pageSize);
@@ -136,22 +136,28 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
+        [HttpGet("GetAllDrugsV2"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsV2([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllDrugsV2(classId);
+            return Ok(items);
+        }
         [HttpGet("GetAllDrugsV3"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugsV3([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugsV3(classId);
             return Ok(items);
         }
+        [HttpGet("GetAllDrugsV4"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsV4([FromQuery] int classId)
+        {
+            var items = await _drugService.GetAllDrugsV4(classId);
+            return Ok(items);
+        }
         [HttpGet("GetAllDrugsV2Insu"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugsV2Insu([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugsV2Insu(classId);
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsV2"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsV2([FromQuery] int classId)
-        {
-            var items = await _drugService.GetAllDrugsV2(classId);
             return Ok(items);
         }
         [HttpGet("GetDrugById"), AllowAnonymous]
@@ -287,9 +293,9 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin"), Authorize]
-        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize,[FromQuery]int classVersion = 1)
+        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] int classVersion = 1)
         {
-            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize,classVersion);
+            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize, classVersion);
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginatedv2"), Authorize]
@@ -351,6 +357,29 @@ namespace SearchTool_ServerSide.Controllers
         {
             var items = await _drugService.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber);
             return Ok(items);
+        }
+        [HttpGet("GetAllDrugsWithClassNames"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsWithClassNames()
+        {
+            var DrugDB = await _drugService.GetAllDrugsWithClassNames();
+            // Serialize DrugDB to CSV
+            var csv = new System.Text.StringBuilder();
+            // Add header
+            if (DrugDB.Any())
+            {
+                var properties = typeof(SearchTool_ServerSide.Dtos.DrugDtos.FullDrugReadDto).GetProperties();
+                csv.AppendLine(string.Join(",", properties.Select(p => p.Name)));
+                foreach (var item in DrugDB)
+                {
+                    csv.AppendLine(string.Join(",", properties.Select(p =>
+                    {
+                        var value = p.GetValue(item, null);
+                        return value != null ? value.ToString().Replace(",", " ") : "";
+                    })));
+                }
+            }
+            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+            return File(bytes, "text/csv", "DrugDB.csv");
         }
 
     }

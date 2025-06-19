@@ -3,7 +3,7 @@ namespace SearchTool_ServerSide.Dtos.OrderDtos
     public class OrderAddDto
     {
         
-        public int UserId { get; set; }
+        public string UserEmail { get; set; }
         public DateTime Date { get; set; }
         public decimal TotalNet { get; set; }= 0;
         public decimal TotalPatientPay { get; set; } =  0;

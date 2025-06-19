@@ -33,6 +33,7 @@ namespace SearchTool_ServerSide.Profiles
                .ForMember(dest => dest.Drug, opt => opt.MapFrom(src => src.Drug != null ? src.Drug.Name : null))
                .ForMember(dest => dest.Branch, opt => opt.MapFrom(src => src.Branch != null ? src.Branch.Name : null));
             CreateMap<DrugMedi, DrugMediReadDto>();
+            CreateMap<Drug, FullDrugReadDto>().ReverseMap();
 
         }
     }

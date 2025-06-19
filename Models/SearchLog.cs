@@ -9,8 +9,8 @@ namespace SearchTool_ServerSide.Models
         public int? RxgroupId { get; set; }
         public int? BinId { get; set; }
         public int? PcnId { get; set; }
-        public int DrugId { get; set; }
-        public int UserId { get; set; }
+        public string DrugNDC { get; set; }
+        public string UserEmail { get; set; }
         public int OrderItemId { get; set; }
         // public OrderItem OrderItem { get; set; }
         public User User { get; set; }

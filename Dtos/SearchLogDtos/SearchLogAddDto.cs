@@ -7,7 +7,7 @@ namespace SearchTool_ServerSide.Dtos.SearchLogDtos
         public int RxgroupId { get; set; }
         public int BinId { get; set; }
         public int PcnId { get; set; }
-        public int DrugId { get; set; }
+        public string DrugNDC { get; set; }
         public int UserId { get; set; }
 
         public DateTime Date { get; set; }

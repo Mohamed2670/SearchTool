@@ -64,6 +64,7 @@ namespace SearchTool_ServerSide.Repository
 
         internal async Task<User?> GetUserByEmail(string email)
         {
+            
             return await _context.Users
                 .FirstOrDefaultAsync(x => x.Email.ToLower() == email.ToLower());
         }

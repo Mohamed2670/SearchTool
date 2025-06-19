@@ -20,6 +20,19 @@ namespace SearchTool_ServerSide.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+        [HttpPost("SyncUserDataCsv"), AllowAnonymous]
+        public async Task<IActionResult> SyncUserDataCsv(string filePath = "Users.csv")
+        {
+            try
+            {
+                await _dataSyncService.SyncUserDataCsv(filePath);
+                return Ok("User data synchronized successfully from CSV.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
         [HttpPost("SyncLogs")]
         public async Task<IActionResult> SyncLogs()
         {
@@ -27,6 +40,19 @@ namespace SearchTool_ServerSide.Controllers
             {
                 await _dataSyncService.SyncLogsAsync();
                 return Ok("Logs synchronized successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+        [HttpPost("SyncLogsCsv"), AllowAnonymous]
+        public async Task<IActionResult> SyncLogsCsv(string filePath = "logs (5).csv")
+        {
+            try
+            {
+                await _dataSyncService.ImportLogsFromCsvWithoutIdAsync(filePath);
+                return Ok("Logs synchronized successfully from CSV.");
             }
             catch (Exception ex)
             {
@@ -59,7 +85,7 @@ namespace SearchTool_ServerSide.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-        [HttpGet("ImportLogsFromCsvWithoutId"),AllowAnonymous]
+        [HttpGet("ImportLogsFromCsvWithoutId"), AllowAnonymous]
         public async Task<IActionResult> ImportLogsFromCsvWithoutIdAsync()
         {
             await _dataSyncService.ImportLogsFromCsvWithoutIdAsync();

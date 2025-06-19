@@ -10,10 +10,9 @@ namespace SearchTool_ServerSide.Dtos.SearchLogDtos
         public int? BinId { get; set; }
         public int? PcnId { get; set; }
 
-        public int DrugId { get; set; }
-        public string DrugName { get; set; }
         public string NDC { get; set; }
-        public int UserId { get; set; }
+        public string DrugName { get; set; }
+        public string UserEmail { get; set; }
         public int OrderItemId { get; set; }
         public DateTime Date { get; set; }
         public string SearchType { get; set; }

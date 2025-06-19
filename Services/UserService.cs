@@ -30,6 +30,7 @@ namespace SearchTool_ServerSide.Services
 
         internal async Task<(string accessToken, string refreshToken, string userId, string branchId)?> Login(UserLoginDto userLoginDto)
         {
+            
             var user = await _userRepository.GetUserByEmail(userLoginDto.Email);
             if (user == null)
             {
@@ -42,7 +43,7 @@ namespace SearchTool_ServerSide.Services
             }
             var log = new Log
             {
-                UserId = user.Id,
+                UserEmail = user.Email,
                 Date = DateTime.UtcNow,
                 Action = "Login",
             };

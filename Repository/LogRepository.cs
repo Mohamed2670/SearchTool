@@ -15,12 +15,12 @@ namespace SearchTool_ServerSide.Repository
             _context = context;
             _mapper = mapper;
         }
-        public async Task<ICollection<LogsReadDto>> GetAll(int userId)
+        public async Task<ICollection<LogsReadDto>> GetAll(string userEmail)
         {
             // Retrieve the user including their branch info to get the main company id
             var user = await _context.Users
                                      .Include(u => u.Branch)
-                                     .FirstOrDefaultAsync(u => u.Id == userId);
+                                     .FirstOrDefaultAsync(u => u.Email == userEmail);
             if (user == null)
             {
                 throw new Exception("User not found.");
@@ -32,41 +32,45 @@ namespace SearchTool_ServerSide.Repository
             // Query logs for all users whose branch belongs to the same main company
             var items = await (
                 from log in _context.Logs
-                join usr in _context.Users on log.UserId equals usr.Id
+                join usr in _context.Users on log.User.Id equals usr.Id
                 join branch in _context.Branches on usr.BranchId equals branch.Id
                 where branch.MainCompanyId == mainCompanyId
-                select new LogsReadDto
-                {
-                    Id = log.UserId,
-                    UserName = usr.Name,
-                    Date = log.Date,
-                    Action = log.Action
-                }).ToListAsync();
+                select new { log, usr }
+            )
+            .ToListAsync();
 
-            return items;
+            var dtos = items.Select(x => new LogsReadDto
+            {
+                Id = x.log.User.Id,
+                UserName = x.usr.Name, // Now decrypted by the getter
+                Date = x.log.Date,
+                Action = x.log.Action
+            }).ToList();
+
+            return dtos;
         }
 
         internal async Task InsertAllLogsToDB(IEnumerable<Log> logs)
         {
             // Build a lookup for existing logs by (UserId, Date)
             var existingLogs = await _context.Logs
-                .Select(l => new { l.Id, l.UserId, l.Date })
+                .Select(l => new { l.Id, l.UserEmail, l.Date })
                 .ToListAsync();
 
             var logLookup = existingLogs.ToDictionary(
-                l => (l.UserId, l.Date), l => l.Id);
+                l => (l.UserEmail, l.Date), l => l.Id);
 
             int skipped = 0, inserted = 0, updated = 0;
 
             foreach (var log in logs)
             {
-                if (log.UserId == 0 || log.Date == default)
+                if (log.UserEmail == "" || log.Date == default)
                 {
                     skipped++;
                     continue;
                 }
 
-                var key = (log.UserId, log.Date);
+                var key = (log.UserEmail, log.Date);
 
                 if (logLookup.TryGetValue(key, out int existingLogId))
                 {

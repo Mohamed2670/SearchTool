@@ -1,22 +1,18 @@
-using ServerSide.Model;
+using SearchTool_ServerSide.Models;
 
-namespace SearchTool_ServerSide.Models
+namespace SearchTool_ServerSide.Dtos.DrugDtos
 {
-    public class Drug : IEntity
+    public class FullDrugReadDto
     {
         public int Id { get; set; }
         public required string Name { get; set; }
         public required string NDC { get; set; }
         public string? Form { get; set; }
         public string? Strength { get; set; }
-        public int DrugClassId { get; set; }
-        public DrugClass? DrugClass { get; set; }
-        public int DrugClassV2Id { get; set; }
-        public DrugClassV2? DrugClassV2 { get; set; }
-        public int DrugClassV3Id { get; set; }
-        public DrugClassV3? DrugClassV3 { get; set; }
-        public int DrugClassV4Id { get; set; }
-        public DrugClassV4? DrugClassV4 { get; set; }
+        public string DrugClass { get; set; }
+        public string DrugClassV2 { get; set; }
+        public string DrugClassV3 { get; set; }
+        public string DrugClassV4 { get; set; }
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

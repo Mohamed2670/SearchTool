@@ -8,6 +8,7 @@ namespace SearchTool_ServerSide.Repository
     {
         public async Task<T> Add(T entity)
         {
+            
             await _context.Set<T>().AddAsync(entity);
             await _context.SaveChangesAsync();
             return entity;

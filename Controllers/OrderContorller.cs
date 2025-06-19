@@ -39,7 +39,7 @@ namespace SearchTool_ServerSide.Controllers
                 return BadRequest("Invalid user ID format");
             }
 
-            await _orderService.CreateOrder(createOrderRequest.OrderItems, userData.UserId, createOrderRequest.SearchLogs);
+            await _orderService.CreateOrder(createOrderRequest.OrderItems, userData.Email, createOrderRequest.SearchLogs);
 
             return Ok("Order created successfully.");
         }
@@ -56,7 +56,7 @@ namespace SearchTool_ServerSide.Controllers
             {
                 return BadRequest("Invalid user ID format");
             }
-            var orders = await _orderService.GetAllOrdersByUserId(userId);
+            var orders = await _orderService.GetAllOrdersByUserId(userData.Email);
             if (orders == null || orders.Count == 0)
             {
                 return NotFound("No orders found for the specified user.");

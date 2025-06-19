@@ -20,7 +20,7 @@ namespace SearchTool_ServerSide.Models
         public int DrugClassId { get; set; }
         public DrugClass DrugClass { get; set; }
 
-        public int PrescriberId { get; set; }
+        public string UserEmail { get; set; }
         public User Prescriber { get; set; }
 
         // Script Item Details

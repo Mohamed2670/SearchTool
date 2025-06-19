@@ -88,7 +88,7 @@ namespace SearchTool_ServerSide.Repository
         }
         internal async Task<InsuranceRx> GetRXById(int id)
         {
-            return await _context.InsuranceRxes.FirstOrDefaultAsync(x => x.Id == id);
+            return await _context.InsuranceRxes.Include(x=>x.InsurancePCN).ThenInclude(x=>x.Insurance).FirstOrDefaultAsync(x => x.Id == id);
         }
         internal async Task<InsurancePCN> GetPCNById(int id)
         {

@@ -56,6 +56,8 @@ builder.Services.AddScoped<InsuranceRepository>();
 builder.Services.AddScoped<OrderRepository>();
 builder.Services.AddScoped<OrderItemRepository>();
 builder.Services.AddScoped<SearchLogRepository>();
+builder.Services.AddScoped<NadacRepository>();
+builder.Services.AddScoped<NadacService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<DrugService>();
 builder.Services.AddScoped<UserSevice>();

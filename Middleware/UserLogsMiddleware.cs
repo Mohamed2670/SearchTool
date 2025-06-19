@@ -69,7 +69,7 @@ namespace SearchTool_ServerSide.Middleware
                     }
                     var log = new Log
                     {
-                        UserId = userId.Value,
+                        UserEmail = user.Email,
                         Date = DateTime.UtcNow,
                         Action = "User requested " + endpointName 
                     };

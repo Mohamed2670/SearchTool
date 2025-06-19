@@ -5,11 +5,12 @@ using SearchTool_ServerSide.Repository;
 
 namespace SearchTool_ServerSide.Services
 {
-    public class LogsService(LogRepository _logRepository,IMapper _mapper)
+    public class LogsService(LogRepository _logRepository,UserRepository _userRepository,IMapper _mapper)
     {
         internal async Task<ICollection<LogsReadDto>> GetAllLogs(int userId)
         {
-            var items = await _logRepository.GetAll(userId);
+            var user = await _userRepository.GetById(userId);
+            var items = await _logRepository.GetAll(user.Email);
             return items;
         }
 

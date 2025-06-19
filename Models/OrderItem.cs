@@ -7,7 +7,8 @@ namespace SearchTool_ServerSide.Models
     {
         public int Id { get; set; }
         public int OrderId { get; set; }
-        public int DrugId { get; set; }
+        public string DrugName { get; set; }
+        public string DrugNDC { get; set; }
         public decimal NetPrice { get; set; }
         public decimal PatientPay { get; set; }
         public decimal InsurancePay { get; set; }

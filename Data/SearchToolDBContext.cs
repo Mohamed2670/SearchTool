@@ -1,7 +1,11 @@
+using System.Net.Http.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using SearchTool_ServerSide.Authentication;
 using SearchTool_ServerSide.Models;
 using ServerSide.Models;
-
+using Newtonsoft.Json;
 namespace SearchTool_ServerSide.Data
 {
     public class GlobalDBContext : DbContext
@@ -57,8 +61,21 @@ namespace SearchTool_ServerSide.Data
             });
             modelBuilder.Entity<DrugBranch>(entity =>
             {
-                entity.HasKey(ci => new { ci.DrugId, ci.BranchId });
+                entity.HasKey(db => new { db.DrugNDC, db.BranchId });
+
+                // Relationships
+                entity.HasOne(db => db.Drug)
+                      .WithMany() // optionally `.WithMany(d => d.DrugBranches)` if you add navigation in Drug
+                      .HasForeignKey(db => db.DrugNDC)
+                      .HasPrincipalKey(d => d.NDC) // since DrugNDC links to NDC, not Id
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(db => db.Branch)
+                      .WithMany() // optionally `.WithMany(b => b.DrugBranches)` if you add navigation in Branch
+                      .HasForeignKey(db => db.BranchId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
+
             modelBuilder.Entity<Specialty>().HasData(
                           new { Id = 1, Name = "Dermatology specialty", }
                       );
@@ -77,11 +94,17 @@ namespace SearchTool_ServerSide.Data
             );
         }
     }
-
     public class SearchToolDBContext : DbContext
     {
+        private readonly UserAccessToken _userAccessToken;
 
-        public SearchToolDBContext(DbContextOptions<SearchToolDBContext> options) : base(options) { }
+        public SearchToolDBContext(DbContextOptions<SearchToolDBContext> options) : base(options)
+        {
+        }
+        public SearchToolDBContext(DbContextOptions<SearchToolDBContext> options, UserAccessToken userAccessToken) : base(options)
+        {
+            _userAccessToken = userAccessToken;
+        }
 
         public DbSet<Drug> Drugs { get; set; }
         public DbSet<DrugClass> DrugClasses { get; set; }
@@ -93,7 +116,7 @@ namespace SearchTool_ServerSide.Data
         public DbSet<ClassInsuranceV2> ClassInsuranceV2s { get; set; }
 
         public DbSet<ClassInsuranceV3> ClassInsuranceV3s { get; set; }
-
+        public DbSet<ClassInsuranceV4> ClassInsuranceV4s { get; set; }
         public DbSet<ScriptItem> ScriptItems { get; set; }
         public DbSet<Branch> Branches { get; set; }
         public DbSet<DrugBranch> DrugBranches { get; set; }
@@ -107,8 +130,51 @@ namespace SearchTool_ServerSide.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<DrugClassV2> DrugClassV2s { get; set; }
         public DbSet<DrugClassV3> DrugClassV3s { get; set; }
-
+        public DbSet<DrugClassV4> DrugClassV4s { get; set; }
         public DbSet<DrugMedi> DrugMedis { get; set; }
+        public DbSet<AuditTrail> AuditTrails { get; set; }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var modifiedEntities = ChangeTracker.Entries()
+                .Where(e => e.State == EntityState.Modified || e.State == EntityState.Added || e.State == EntityState.Deleted)
+                .ToList(); // Materialize to avoid collection modification
+
+            var auditEntries = new List<AuditTrail>();
+            foreach (var entry in modifiedEntities)
+            {
+                if (entry.Entity == null) continue;
+
+                var primaryKeyProp = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+                var primaryKey = primaryKeyProp?.CurrentValue?.ToString() ?? "";
+
+                var oldValues = entry.OriginalValues?.Properties
+                    .ToDictionary(p => p.Name, p => entry.OriginalValues[p]);
+                var newValues = entry.CurrentValues?.Properties
+                    .ToDictionary(p => p.Name, p => entry.CurrentValues[p]);
+
+                var performedBy = "System";
+                if (string.IsNullOrEmpty(performedBy))
+                    performedBy = "System";
+
+                var audit = new AuditTrail
+                {
+                    TableName = entry.Entity.GetType().Name,
+                    ActionType = entry.State.ToString(),
+                    PrimaryKey = primaryKey,
+                    OldValues = oldValues != null ? JsonConvert.SerializeObject(oldValues) : null,
+                    NewValues = newValues != null ? JsonConvert.SerializeObject(newValues) : null,
+                    PerformedBy = performedBy,
+                    Timestamp = DateTime.UtcNow
+                };
+
+                AuditTrails.Add(audit);
+            }
+            // Add all audit entries after the loop
+            AuditTrails.AddRange(auditEntries);
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -140,8 +206,21 @@ namespace SearchTool_ServerSide.Data
             });
             modelBuilder.Entity<DrugBranch>(entity =>
             {
-                entity.HasKey(ci => new { ci.DrugId, ci.BranchId });
+                entity.HasKey(db => new { db.DrugNDC, db.BranchId });
+
+                // Relationships
+                entity.HasOne(db => db.Drug)
+                      .WithMany() // optionally `.WithMany(d => d.DrugBranches)` if you add navigation in Drug
+                      .HasForeignKey(db => db.DrugNDC)
+                      .HasPrincipalKey(d => d.NDC) // since DrugNDC links to NDC, not Id
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(db => db.Branch)
+                      .WithMany() // optionally `.WithMany(b => b.DrugBranches)` if you add navigation in Branch
+                      .HasForeignKey(db => db.BranchId)
+                      .OnDelete(DeleteBehavior.Cascade);
             });
+
             modelBuilder.Entity<Specialty>().HasData(
                           new { Id = 1, Name = "Dermatology specialty", }
                       );
@@ -159,6 +238,112 @@ namespace SearchTool_ServerSide.Data
                 new Branch { Id = 6, Name = "ASP", Location = "VIRTUAL", Code = "6", MainCompanyId = 2 }
 
             );
+            modelBuilder.Entity<Log>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.UserEmail)
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.Property(e => e.Action)
+                    .IsRequired();
+
+                entity.Property(e => e.Date)
+                    .HasDefaultValueSql("NOW()"); // For PostgreSQL
+
+                // Foreign key relationship: UserEmail -> User.Email
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.Logs)
+                    .HasForeignKey(e => e.UserEmail)
+                    .HasPrincipalKey(u => u.Email)
+                    .OnDelete(DeleteBehavior.Cascade); // Or Restrict
+            });
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UserEmail)
+                    .IsRequired()
+                    .HasMaxLength(255);
+                entity.Property(e => e.Date)
+                    .HasDefaultValueSql("NOW()"); // PostgreSQL or use GETUTCDATE() for SQL Server
+                entity.Property(e => e.TotalNet).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalPatientPay).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalInsurancePay).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalAcquisitionCost).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AddtionalCost).HasColumnType("decimal(18,2)");
+                // UserEmail -> User.Email relationship
+
+            });
+            modelBuilder.Entity<User>(entity =>
+                {
+                    entity.HasKey(u => u.Id);
+                    entity.HasIndex(u => u.Email).IsUnique(); // Required for .HasPrincipalKey
+                });
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                // DrugId → Drug.Id
+                entity.HasOne(e => e.Drug)
+                    .WithMany()
+                    .HasForeignKey(e => e.DrugNDC)
+                    .HasPrincipalKey(e => e.NDC)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<ScriptItem>(entity =>
+            {
+                entity.HasOne(e => e.Prescriber)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserEmail)
+                    .HasPrincipalKey(e => e.Email)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<SearchLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.UserEmail)
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.Property(e => e.SearchType)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.Date)
+                    .HasDefaultValueSql("NOW()"); // PostgreSQL; use GETUTCDATE() for SQL Server
+
+                // UserEmail → User.Email
+                entity.HasOne(e => e.User)
+                    .WithMany() // or .WithMany(u => u.SearchLogs) if reverse navigation exists
+                    .HasForeignKey(e => e.UserEmail)
+                    .HasPrincipalKey(u => u.Email)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // DrugId → Drug.Id
+                entity.HasOne(e => e.Drug)
+                    .WithMany()
+                    .HasForeignKey(e => e.DrugNDC)
+                    .HasPrincipalKey(e => e.NDC)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Optional Insurance FKs
+                entity.HasOne(e => e.Insurance)
+                    .WithMany()
+                    .HasForeignKey(e => e.RxgroupId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.InsuranceRx)
+                    .WithMany()
+                    .HasForeignKey(e => e.BinId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.InsurancePCN)
+                    .WithMany()
+                    .HasForeignKey(e => e.PcnId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
     }
+
+
 }

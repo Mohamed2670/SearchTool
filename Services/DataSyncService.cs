@@ -17,6 +17,133 @@ public class DataSyncService
         _localDb = localDb;
     }
 
+    public async Task SyncUserDataCsv(string filePath = "Users.csv")
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = true,
+            Encoding = Encoding.UTF8,
+            MissingFieldFound = null // Ignore missing fields
+        };
+
+        using var reader = new StreamReader(filePath, Encoding.UTF8);
+        using var csv = new CsvReader(reader, config);
+        var records = csv.GetRecords<User>().ToList();
+        var userDi = await _localDb.Users
+            .Select(u => new { u.Email })
+            .ToDictionaryAsync(u => u.Email);
+        var newUsers = records
+            .Where(r => !userDi.ContainsKey(r.Email))
+            .ToList();
+        if (!newUsers.Any())
+        {
+            Console.WriteLine("No new users to add.");
+            return;
+        }
+        // Prevent navigation properties from causing extra inserts
+        foreach (var user in newUsers)
+        {
+            user.Id = 0;
+            user.ShortName = user.ShortName; // triggers encryption
+            user.Branch = null;              // Detach related entities
+        }
+        await _localDb.Users.AddRangeAsync(newUsers);
+        await _localDb.SaveChangesAsync();
+    }
+    public class LogCsvRow
+    {
+        public int LogId { get; set; } = 0;
+        public int UserId { get; set; }
+        public string Action { get; set; }
+
+        public int User_OriginalId { get; set; }
+        public string Email { get; set; }
+        public string ShortName { get; set; }
+        public string Name { get; set; }
+        public string Password { get; set; }
+        public int BranchId { get; set; }
+
+        public string Role { get; set; }
+        public DateTime Date { get; set; }
+    }
+    public sealed class LogCsvRowMap : ClassMap<LogCsvRow>
+    {
+        public LogCsvRowMap()
+        {
+            Map(m => m.UserId).Index(1);
+            Map(m => m.Action).Index(2);
+
+            Map(m => m.User_OriginalId).Index(3);
+            Map(m => m.Email).Index(4);
+            Map(m => m.ShortName).Index(5);
+            Map(m => m.Name).Index(6);
+            Map(m => m.Password).Index(7);
+            Map(m => m.BranchId).Index(8);
+
+            Map(m => m.Role).Index(20);
+            Map(m => m.Date)
+                .Index(21)
+                .Convert(row =>
+                {
+                    var text = row.Row.GetField(21);
+
+                    if (string.IsNullOrWhiteSpace(text))
+                        return DateTime.UtcNow;
+
+                    if (DateTime.TryParse(text, out var parsedDate))
+                        return DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+
+                    return DateTime.UtcNow; // fallback if invalid
+                });
+        }
+    }
+
+    public async Task SyncLogsFromCsv(string filePath = "logs (5).csv")
+    {
+        var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HasHeaderRecord = true,
+            MissingFieldFound = null
+        };
+
+        using var reader = new StreamReader(filePath);
+        using var csv = new CsvReader(reader, config);
+        csv.Context.RegisterClassMap<LogCsvRowMap>();
+
+        var csvLogs = csv.GetRecords<LogCsvRow>().ToList();
+
+        // Load existing logs into memory for duplicate check
+        var existingLogs = await _localDb.Logs
+            .Select(log => new { log.Action, log.UserEmail, log.Date })
+            .ToListAsync();
+        var validEmails = await _localDb.Users.Select(u => u.Email).ToListAsync();
+
+        var newLogs = csvLogs
+            .Where(row => validEmails.Contains(row.Email))
+            .Where(row => !existingLogs.Any(e =>
+                e.Action == row.Action &&
+                e.UserEmail == row.Email &&
+                e.Date == row.Date))
+            .Select(row => new Log
+            {
+                Action = row.Action,
+                UserEmail = row.Email,
+                Date = row.Date
+            })
+            .ToList();
+
+        if (newLogs.Any())
+        {
+            await _localDb.Logs.AddRangeAsync(newLogs);
+            await _localDb.SaveChangesAsync();
+            Console.WriteLine($"Inserted {newLogs.Count} new logs.");
+        }
+        else
+        {
+            Console.WriteLine("No new logs found.");
+        }
+    }
+
     public async Task SyncUsersAsync()
     {
         var globalUsers = await _globalDb.Users.AsNoTracking().ToListAsync();
@@ -26,23 +153,35 @@ public class DataSyncService
 
         foreach (var globalUser in globalUsers)
         {
-            // Skip if the branch does not exist in local DB
             if (!localBranchIds.Contains(globalUser.BranchId))
                 continue;
 
             if (emailToUserMap.TryGetValue(globalUser.Email, out var existingLocalUser))
             {
-                // Update existing user
-                _localDb.Entry(existingLocalUser).CurrentValues.SetValues(globalUser);
+                // Update only non-key properties, encrypting ShortName
+                existingLocalUser.ShortName = globalUser.ShortName; // Will be encrypted by the setter
+                existingLocalUser.Name = globalUser.Name;
+                existingLocalUser.Password = globalUser.Password;
+                existingLocalUser.BranchId = globalUser.BranchId;
+                existingLocalUser.Role = globalUser.Role;
+                // Do NOT update Id
             }
             else
             {
-                // Insert new user — remove Id to let EF generate one
-                globalUser.Id = 0;
-                await _localDb.Users.AddAsync(globalUser);
+                // Insert new user, encrypting ShortName
+                var newUser = new User
+                {
+                    Email = globalUser.Email,
+                    ShortName = globalUser.ShortName, // Will be encrypted by the setter
+                    Name = globalUser.Name,
+                    Password = globalUser.Password,
+                    BranchId = globalUser.BranchId,
+                    Role = globalUser.Role
+                    // Orders and Logs can be left null or initialized as needed
+                };
+                await _localDb.Users.AddAsync(newUser);
             }
         }
-
         await _localDb.SaveChangesAsync();
     }
 
@@ -78,7 +217,7 @@ public class DataSyncService
                 continue;
             }
 
-            log.UserId = resolvedUserId;
+            log.UserEmail = log.User.Email;
             log.User = null;
 
             if (localLogIds.Contains(log.Id))
@@ -192,17 +331,17 @@ public class DataSyncService
 
         // Remove duplicates from CSV by UserId, Action, Date (all in UTC)
         var uniqueLogs = logs
-            .GroupBy(l => new { l.UserId, l.Action, l.Date })
+            .GroupBy(l => new { l.Email, l.Action, l.Date })
             .Select(g => g.First())
             .ToList();
 
         // Also normalize existing DB dates to UTC for comparison
         var existing = await _localDb.Logs
-            .Select(l => new { l.UserId, l.Action, l.Date })
+            .Select(l => new { l.UserEmail, l.Action, l.Date })
             .ToListAsync();
-        var existingSet = new HashSet<(int, string, DateTime)>(
+        var existingSet = new HashSet<(string, string, DateTime)>(
             existing.Select(e =>
-                (e.UserId, e.Action, e.Date.Kind == DateTimeKind.Utc
+                (e.UserEmail, e.Action, e.Date.Kind == DateTimeKind.Utc
                     ? e.Date
                     : DateTime.SpecifyKind(e.Date, DateTimeKind.Utc)))
         );
@@ -218,7 +357,7 @@ public class DataSyncService
             }
             return new Log
             {
-                UserId = user.Id,
+                UserEmail = user.Email,
                 Action = l.Action,
                 Date = l.Date // Already UTC
             };
