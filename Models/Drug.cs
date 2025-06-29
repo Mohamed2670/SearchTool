@@ -17,6 +17,7 @@ namespace SearchTool_ServerSide.Models
         public DrugClassV3? DrugClassV3 { get; set; }
         public int DrugClassV4Id { get; set; }
         public DrugClassV4? DrugClassV4 { get; set; }
+        public ICollection<DrugEPCMOA> DrugEPCMOAs { get; set; } = new List<DrugEPCMOA>();
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

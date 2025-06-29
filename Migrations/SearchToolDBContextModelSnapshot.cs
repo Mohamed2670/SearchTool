@@ -81,46 +81,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.ToTable("SearchLogReadDto");
                 });
 
-            modelBuilder.Entity("SearchTool_ServerSide.Models.AuditTrail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("NewValues")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("OldValues")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PerformedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PrimaryKey")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TableName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AuditTrails");
-                });
-
             modelBuilder.Entity("SearchTool_ServerSide.Models.Branch", b =>
                 {
                     b.Property<int>("Id")
@@ -578,6 +538,24 @@ namespace SearchTool_ServerSide.Migrations
                     b.ToTable("DrugClassV4s");
                 });
 
+            modelBuilder.Entity("SearchTool_ServerSide.Models.DrugEPCMOA", b =>
+                {
+                    b.Property<int>("DrugId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EPCMOAClassId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.HasKey("DrugId", "EPCMOAClassId");
+
+                    b.HasIndex("EPCMOAClassId");
+
+                    b.ToTable("DrugEPCMOAs");
+                });
+
             modelBuilder.Entity("SearchTool_ServerSide.Models.DrugInsurance", b =>
                 {
                     b.Property<int>("InsuranceId")
@@ -686,6 +664,27 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasIndex("DrugId");
 
                     b.ToTable("DrugMedis");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.EPCMOAClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EPCMOAClasses");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.Insurance", b =>
@@ -1339,6 +1338,25 @@ namespace SearchTool_ServerSide.Migrations
                     b.Navigation("Drug");
                 });
 
+            modelBuilder.Entity("SearchTool_ServerSide.Models.DrugEPCMOA", b =>
+                {
+                    b.HasOne("SearchTool_ServerSide.Models.Drug", "Drug")
+                        .WithMany("DrugEPCMOAs")
+                        .HasForeignKey("DrugId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SearchTool_ServerSide.Models.EPCMOAClass", "EPCMOAClass")
+                        .WithMany("DrugEPCMOAs")
+                        .HasForeignKey("EPCMOAClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Drug");
+
+                    b.Navigation("EPCMOAClass");
+                });
+
             modelBuilder.Entity("SearchTool_ServerSide.Models.DrugInsurance", b =>
                 {
                     b.HasOne("SearchTool_ServerSide.Models.Branch", "Branch")
@@ -1563,6 +1581,16 @@ namespace SearchTool_ServerSide.Migrations
             modelBuilder.Entity("SearchTool_ServerSide.Models.Branch", b =>
                 {
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.Drug", b =>
+                {
+                    b.Navigation("DrugEPCMOAs");
+                });
+
+            modelBuilder.Entity("SearchTool_ServerSide.Models.EPCMOAClass", b =>
+                {
+                    b.Navigation("DrugEPCMOAs");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.Insurance", b =>

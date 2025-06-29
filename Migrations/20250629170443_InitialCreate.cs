@@ -15,25 +15,6 @@ namespace SearchTool_ServerSide.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "AuditTrails",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    TableName = table.Column<string>(type: "text", nullable: false),
-                    ActionType = table.Column<string>(type: "text", nullable: false),
-                    PrimaryKey = table.Column<string>(type: "text", nullable: false),
-                    OldValues = table.Column<string>(type: "text", nullable: false),
-                    NewValues = table.Column<string>(type: "text", nullable: false),
-                    PerformedBy = table.Column<string>(type: "text", nullable: false),
-                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AuditTrails", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "DrugClasses",
                 columns: table => new
                 {
@@ -86,6 +67,20 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "EPCMOAClasses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EPCMOAClasses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Insurances",
                 columns: table => new
                 {
@@ -98,6 +93,25 @@ namespace SearchTool_ServerSide.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Insurances", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Orders",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserEmail = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
+                    TotalNet = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    TotalPatientPay = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    TotalInsurancePay = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    TotalAcquisitionCost = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
+                    AddtionalCost = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Orders", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -209,6 +223,31 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "DrugEPCMOAs",
+                columns: table => new
+                {
+                    DrugId = table.Column<int>(type: "integer", nullable: false),
+                    EPCMOAClassId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DrugEPCMOAs", x => new { x.DrugId, x.EPCMOAClassId });
+                    table.ForeignKey(
+                        name: "FK_DrugEPCMOAs_Drugs_DrugId",
+                        column: x => x.DrugId,
+                        principalTable: "Drugs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_DrugEPCMOAs_EPCMOAClasses_EPCMOAClassId",
+                        column: x => x.EPCMOAClassId,
+                        principalTable: "EPCMOAClasses",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "DrugMedis",
                 columns: table => new
                 {
@@ -271,6 +310,45 @@ namespace SearchTool_ServerSide.Migrations
                         name: "FK_Branches_MainCompanies_MainCompanyId",
                         column: x => x.MainCompanyId,
                         principalTable: "MainCompanies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "OrderItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    OrderId = table.Column<int>(type: "integer", nullable: false),
+                    DrugName = table.Column<string>(type: "text", nullable: false),
+                    DrugNDC = table.Column<string>(type: "text", nullable: false),
+                    NetPrice = table.Column<decimal>(type: "numeric", nullable: false),
+                    PatientPay = table.Column<decimal>(type: "numeric", nullable: false),
+                    InsurancePay = table.Column<decimal>(type: "numeric", nullable: false),
+                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    AddtionalCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    InsuranceRxId = table.Column<int>(type: "integer", nullable: true),
+                    Amount = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_OrderItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_OrderItems_Drugs_DrugNDC",
+                        column: x => x.DrugNDC,
+                        principalTable: "Drugs",
+                        principalColumn: "NDC",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_OrderItems_InsuranceRxes_InsuranceRxId",
+                        column: x => x.InsuranceRxId,
+                        principalTable: "InsuranceRxes",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_OrderItems_Orders_OrderId",
+                        column: x => x.OrderId,
+                        principalTable: "Orders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -556,6 +634,36 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SearchLogReadDto",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    RxgroupId = table.Column<int>(type: "integer", nullable: true),
+                    RxgroupName = table.Column<string>(type: "text", nullable: false),
+                    BinName = table.Column<string>(type: "text", nullable: false),
+                    PcnName = table.Column<string>(type: "text", nullable: false),
+                    BinId = table.Column<int>(type: "integer", nullable: true),
+                    PcnId = table.Column<int>(type: "integer", nullable: true),
+                    NDC = table.Column<string>(type: "text", nullable: false),
+                    DrugName = table.Column<string>(type: "text", nullable: false),
+                    UserEmail = table.Column<string>(type: "text", nullable: false),
+                    OrderItemId = table.Column<int>(type: "integer", nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    SearchType = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SearchLogReadDto", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SearchLogReadDto_OrderItems_OrderItemId",
+                        column: x => x.OrderItemId,
+                        principalTable: "OrderItems",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Logs",
                 columns: table => new
                 {
@@ -570,31 +678,6 @@ namespace SearchTool_ServerSide.Migrations
                     table.PrimaryKey("PK_Logs", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Logs_Users_UserEmail",
-                        column: x => x.UserEmail,
-                        principalTable: "Users",
-                        principalColumn: "Email",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Orders",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserEmail = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "NOW()"),
-                    TotalNet = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    TotalPatientPay = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    TotalInsurancePay = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    TotalAcquisitionCost = table.Column<decimal>(type: "numeric(18,2)", nullable: false),
-                    AddtionalCost = table.Column<decimal>(type: "numeric(18,2)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Orders", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Orders_Users_UserEmail",
                         column: x => x.UserEmail,
                         principalTable: "Users",
                         principalColumn: "Email",
@@ -679,45 +762,6 @@ namespace SearchTool_ServerSide.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OrderItems",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    OrderId = table.Column<int>(type: "integer", nullable: false),
-                    DrugName = table.Column<string>(type: "text", nullable: false),
-                    DrugNDC = table.Column<string>(type: "text", nullable: false),
-                    NetPrice = table.Column<decimal>(type: "numeric", nullable: false),
-                    PatientPay = table.Column<decimal>(type: "numeric", nullable: false),
-                    InsurancePay = table.Column<decimal>(type: "numeric", nullable: false),
-                    AcquisitionCost = table.Column<decimal>(type: "numeric", nullable: false),
-                    AddtionalCost = table.Column<decimal>(type: "numeric", nullable: false),
-                    InsuranceRxId = table.Column<int>(type: "integer", nullable: true),
-                    Amount = table.Column<int>(type: "integer", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_OrderItems", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_OrderItems_Drugs_DrugNDC",
-                        column: x => x.DrugNDC,
-                        principalTable: "Drugs",
-                        principalColumn: "NDC",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_OrderItems_InsuranceRxes_InsuranceRxId",
-                        column: x => x.InsuranceRxId,
-                        principalTable: "InsuranceRxes",
-                        principalColumn: "Id");
-                    table.ForeignKey(
-                        name: "FK_OrderItems_Orders_OrderId",
-                        column: x => x.OrderId,
-                        principalTable: "Orders",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "ScriptItems",
                 columns: table => new
                 {
@@ -770,36 +814,6 @@ namespace SearchTool_ServerSide.Migrations
                         principalTable: "Users",
                         principalColumn: "Email",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SearchLogReadDto",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    RxgroupId = table.Column<int>(type: "integer", nullable: true),
-                    RxgroupName = table.Column<string>(type: "text", nullable: false),
-                    BinName = table.Column<string>(type: "text", nullable: false),
-                    PcnName = table.Column<string>(type: "text", nullable: false),
-                    BinId = table.Column<int>(type: "integer", nullable: true),
-                    PcnId = table.Column<int>(type: "integer", nullable: true),
-                    NDC = table.Column<string>(type: "text", nullable: false),
-                    DrugName = table.Column<string>(type: "text", nullable: false),
-                    UserEmail = table.Column<string>(type: "text", nullable: false),
-                    OrderItemId = table.Column<int>(type: "integer", nullable: false),
-                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    SearchType = table.Column<string>(type: "text", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SearchLogReadDto", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_SearchLogReadDto_OrderItems_OrderItemId",
-                        column: x => x.OrderItemId,
-                        principalTable: "OrderItems",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.InsertData(
@@ -915,6 +929,11 @@ namespace SearchTool_ServerSide.Migrations
                 column: "BranchId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_DrugEPCMOAs_EPCMOAClassId",
+                table: "DrugEPCMOAs",
+                column: "EPCMOAClassId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_DrugInsurances_BranchId",
                 table: "DrugInsurances",
                 column: "BranchId");
@@ -983,11 +1002,6 @@ namespace SearchTool_ServerSide.Migrations
                 name: "IX_OrderItems_OrderId",
                 table: "OrderItems",
                 column: "OrderId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Orders_UserEmail",
-                table: "Orders",
-                column: "UserEmail");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ScriptItems_DrugClassId",
@@ -1059,14 +1073,17 @@ namespace SearchTool_ServerSide.Migrations
                 name: "IX_Users_BranchId",
                 table: "Users",
                 column: "BranchId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Users_Email",
+                table: "Users",
+                column: "Email",
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AuditTrails");
-
             migrationBuilder.DropTable(
                 name: "ClassInsurances");
 
@@ -1081,6 +1098,9 @@ namespace SearchTool_ServerSide.Migrations
 
             migrationBuilder.DropTable(
                 name: "DrugBranches");
+
+            migrationBuilder.DropTable(
+                name: "DrugEPCMOAs");
 
             migrationBuilder.DropTable(
                 name: "DrugInsurances");
@@ -1101,10 +1121,16 @@ namespace SearchTool_ServerSide.Migrations
                 name: "SearchLogs");
 
             migrationBuilder.DropTable(
+                name: "EPCMOAClasses");
+
+            migrationBuilder.DropTable(
                 name: "Scripts");
 
             migrationBuilder.DropTable(
                 name: "OrderItems");
+
+            migrationBuilder.DropTable(
+                name: "Users");
 
             migrationBuilder.DropTable(
                 name: "Drugs");
@@ -1114,6 +1140,9 @@ namespace SearchTool_ServerSide.Migrations
 
             migrationBuilder.DropTable(
                 name: "Orders");
+
+            migrationBuilder.DropTable(
+                name: "Branches");
 
             migrationBuilder.DropTable(
                 name: "DrugClassV2s");
@@ -1131,16 +1160,10 @@ namespace SearchTool_ServerSide.Migrations
                 name: "InsurancePCNs");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "MainCompanies");
 
             migrationBuilder.DropTable(
                 name: "Insurances");
-
-            migrationBuilder.DropTable(
-                name: "Branches");
-
-            migrationBuilder.DropTable(
-                name: "MainCompanies");
 
             migrationBuilder.DropTable(
                 name: "Specialties");

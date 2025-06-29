@@ -132,49 +132,9 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugClassV3> DrugClassV3s { get; set; }
         public DbSet<DrugClassV4> DrugClassV4s { get; set; }
         public DbSet<DrugMedi> DrugMedis { get; set; }
-        public DbSet<AuditTrail> AuditTrails { get; set; }
+        public DbSet<DrugEPCMOA> DrugEPCMOAs { get; set; }
+        public DbSet<EPCMOAClass> EPCMOAClasses { get; set; }
 
-        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            var modifiedEntities = ChangeTracker.Entries()
-                .Where(e => e.State == EntityState.Modified || e.State == EntityState.Added || e.State == EntityState.Deleted)
-                .ToList(); // Materialize to avoid collection modification
-
-            var auditEntries = new List<AuditTrail>();
-            foreach (var entry in modifiedEntities)
-            {
-                if (entry.Entity == null) continue;
-
-                var primaryKeyProp = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
-                var primaryKey = primaryKeyProp?.CurrentValue?.ToString() ?? "";
-
-                var oldValues = entry.OriginalValues?.Properties
-                    .ToDictionary(p => p.Name, p => entry.OriginalValues[p]);
-                var newValues = entry.CurrentValues?.Properties
-                    .ToDictionary(p => p.Name, p => entry.CurrentValues[p]);
-
-                var performedBy = "System";
-                if (string.IsNullOrEmpty(performedBy))
-                    performedBy = "System";
-
-                var audit = new AuditTrail
-                {
-                    TableName = entry.Entity.GetType().Name,
-                    ActionType = entry.State.ToString(),
-                    PrimaryKey = primaryKey,
-                    OldValues = oldValues != null ? JsonConvert.SerializeObject(oldValues) : null,
-                    NewValues = newValues != null ? JsonConvert.SerializeObject(newValues) : null,
-                    PerformedBy = performedBy,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                AuditTrails.Add(audit);
-            }
-            // Add all audit entries after the loop
-            AuditTrails.AddRange(auditEntries);
-
-            return await base.SaveChangesAsync(cancellationToken);
-        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -184,7 +144,18 @@ namespace SearchTool_ServerSide.Data
             {
                 entity.HasKey(item => new { item.InsuranceId, item.DrugId, item.BranchId });
             });
+            modelBuilder.Entity<DrugEPCMOA>(entity =>
+            {
+                entity.HasKey(x => new { x.DrugId, x.EPCMOAClassId });
+                entity.HasOne(x => x.Drug)
+                      .WithMany(d => d.DrugEPCMOAs)
+                      .HasForeignKey(x => x.DrugId);
 
+                entity.HasOne(x => x.EPCMOAClass)
+                      .WithMany(c => c.DrugEPCMOAs)
+                      .HasForeignKey(x => x.EPCMOAClassId);
+
+            });
             modelBuilder.Entity<ClassInsurance>(entity =>
             {
                 entity.HasKey(ci => new { ci.InsuranceId, ci.ClassId, ci.Date, ci.BranchId });

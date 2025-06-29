@@ -8,11 +8,11 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public required string NDCCode { get; set; }
         public required string DrugName { get; set; }
         public string ScriptCode { get; set; }
-        public int DrugClassId { get; set; }
-        public int DrugClassV2Id { get; set; }
-        public int DrugClassV3Id { get; set; }
-        public int DrugClassV4Id { get; set; }
-
+        public int? DrugClassId { get; set; }
+        public int? DrugClassV2Id { get; set; }
+        public int? DrugClassV3Id { get; set; }
+        public int? DrugClassV4Id { get; set; }
+        public string[]? ClassType { get; set; }
         public int? Stock { get; set; } = 100; // Default value
         public string insuranceName { get; set; }
         public decimal Net { get; set; }

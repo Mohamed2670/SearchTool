@@ -108,10 +108,33 @@ namespace SearchTool_ServerSide.Repository
             var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).Select(i => i.Name).ToListAsync();
             return ret;
         }
-        public async Task SaveData()
+        public async Task<List<ClassInfo>> GroupingCLassesEPCMOA(string pharmaClass)
         {
-            var filePath = "drug_enriched_with_group.csv";
+            var classItems = pharmaClass.Split(',');
+            List<ClassInfo> EPCMOAList = new List<ClassInfo>();
 
+            foreach (var raw in classItems)
+            {
+                var trimmed = raw.Trim();
+
+                // Try to extract: "ClassName [ClassType]"
+                var match = System.Text.RegularExpressions.Regex.Match(trimmed, @"^(.*)\[(.*)\]$");
+                if (match.Success)
+                {
+                    var className = match.Groups[1].Value.Trim();
+                    var classType = match.Groups[2].Value.Trim().ToUpper(); // MOA or EPC
+
+                    EPCMOAList.Add(new ClassInfo
+                    {
+                        ClassName = className,
+                        ClassType = classType
+                    });
+                }
+            }
+            return EPCMOAList;
+        }
+        public async Task SaveData(string filePath = "drug_enriched_with_group.csv")
+        {
             var drugs = LoadDrugsFromCsv(filePath);
 
             static List<DrugCs> LoadDrugsFromCsv(string filePath)
@@ -157,6 +180,9 @@ namespace SearchTool_ServerSide.Repository
             var drugClassesV2 = await context.DrugClassV2s.ToDictionaryAsync(dc => dc.Name, dc => dc);
             var drugClassesV3 = await context.DrugClassV3s.ToDictionaryAsync(dc => dc.Name, dc => dc);
             var drugClassesV4 = await context.DrugClassV4s.ToDictionaryAsync(dc => dc.Name, dc => dc);
+            var epcmoaClass = await context.EPCMOAClasses.ToDictionaryAsync(dc => dc.Name, dc => dc);
+            var drugEPCMOA = await context.DrugEPCMOAs.ToDictionaryAsync(dc => (dc.DrugId, dc.EPCMOAClassId), dc => dc);
+
             // **Step 3: Load Existing Drugs by NDC & Name**
             var existingDrugsByNdc = await context.Drugs
                 .GroupBy(d => d.NDC)
@@ -171,9 +197,24 @@ namespace SearchTool_ServerSide.Repository
             var newDrugClassesV2 = new List<DrugClassV2>();
             var newDrugClassesV3 = new List<DrugClassV3>();
             var newDrugClassesV4 = new List<DrugClassV4>();
-
+            var newEPCMOACLasses = new List<EPCMOAClass>();
+            var newDrugEPCMOAs = new List<DrugEPCMOA>();
             foreach (var record in records)
             {
+                var EPCMOAList = await GroupingCLassesEPCMOA(record.PHARM_CLASSES);
+                foreach (var item in EPCMOAList)
+                {
+                    if (item.ClassType != "EPC" && item.ClassType != "MoA")
+                    {
+                        continue;
+                    }
+                    if (!epcmoaClass.TryGetValue(item.ClassName, out var newEPCMOA))
+                    {
+                        newEPCMOA = new EPCMOAClass { Name = item.ClassName, Type = item.ClassType };
+                        newEPCMOACLasses.Add(newEPCMOA);
+                        epcmoaClass[item.ClassName] = newEPCMOA;
+                    }
+                }
                 if (!drugClasses.TryGetValue(record.DrugClass, out var drugClass))
                 {
                     drugClass = new DrugClass { Name = record.DrugClass };
@@ -204,17 +245,17 @@ namespace SearchTool_ServerSide.Repository
             }
 
             // Batch insert new drug classes
-            if (newDrugClasses.Any() || newDrugClassesV2.Any() || newDrugClassesV3.Any() || newDrugClassesV4.Any())
+            if (newDrugClasses.Any() || newDrugClassesV2.Any() || newDrugClassesV3.Any() || newDrugClassesV4.Any() || newEPCMOACLasses.Any())
             {
                 await context.DrugClasses.AddRangeAsync(newDrugClasses);
                 await context.DrugClassV2s.AddRangeAsync(newDrugClassesV2);
                 await context.DrugClassV3s.AddRangeAsync(newDrugClassesV3);
                 await context.DrugClassV4s.AddRangeAsync(newDrugClassesV4);
-
+                await context.EPCMOAClasses.AddRangeAsync(newEPCMOACLasses);
                 await context.SaveChangesAsync();
                 Console.WriteLine($"Added {newDrugClasses.Count} new drug classes at {DateTime.Now}");
             }
-
+            const int batchSize = 20000;
             foreach (var record in records)
             {
                 record.Name = record.Name.ToUpper();
@@ -231,30 +272,6 @@ namespace SearchTool_ServerSide.Repository
                     continue; // Skip existing drug
                 }
 
-                // **Check if Drug Exists by Name**
-                // if (existingDrugsByName.TryGetValue(record.Name, out var existingDrug))
-                // {
-                //     var newDrug = new Drug
-                //     {
-                //         Name = record.Name,
-                //         NDC = tempNdc,
-                //         Form = existingDrug.Form,
-                //         Strength = existingDrug.Strength,
-                //         DrugClassId = existingDrug.DrugClassId,
-                //         ACQ = record.ACQ ?? 0,
-                //         AWP = record.AWP ?? 0,
-                //         Rxcui = existingDrug.Rxcui,
-                //         Route = record.Route,
-                //         Ingrdient = record.Ingrdient,
-                //         TECode = record.TECode,
-                //         ApplicationNumber = record.ApplicationNumber,
-                //         ApplicationType = record.ApplicationType
-                //     };
-
-                //     newDrugs.Add(newDrug);
-                //     existingDrugsByNdc[tempNdc] = newDrug; // Add to dictionary
-                // }
-                // else
                 {
                     // **Create Drug Class if Missing**
                     var newDrug = new Drug
@@ -284,23 +301,76 @@ namespace SearchTool_ServerSide.Repository
                 }
 
                 // **Batch Processing**
-                if (newDrugs.Count >= 10000)
+                if (newDrugs.Count >= batchSize)
                 {
                     await context.Drugs.AddRangeAsync(newDrugs);
                     await context.SaveChangesAsync();
-                    Console.WriteLine($"Processed batch of 10,000 drugs at {DateTime.Now}");
+                    Console.WriteLine($"Processed batch of {batchSize} drugs at {DateTime.Now}");
                     newDrugs.Clear();
                 }
             }
 
-            // Save remaining drugs
             if (newDrugs.Any())
             {
                 await context.Drugs.AddRangeAsync(newDrugs);
                 await context.SaveChangesAsync();
-                Console.WriteLine($"Processed final batch of {newDrugs.Count} drugs at {DateTime.Now}");
+                Console.WriteLine($"Processed batch of {newDrugs.Count} drugs at {DateTime.Now}");
+
+                // Refresh the dictionary to include new drugs with their generated IDs
+                existingDrugsByNdc = await context.Drugs
+                    .GroupBy(d => d.NDC)
+                    .ToDictionaryAsync(g => g.Key, g => g.First());
+                newDrugs.Clear();
             }
+            foreach (var record in records)
+            {
+                string tempNdc = NormalizeNdcTo11Digits(record.NDC);
+                if (existingDrugsByNdc.TryGetValue(tempNdc, out var drug))
+                {
+                    var epcList = await GroupingCLassesEPCMOA(record.PHARM_CLASSES);
+                    foreach (var epc in epcList)
+                    {
+                        if (epc.ClassType != "EPC" && epc.ClassType != "MoA")
+                        {
+                            continue;
+                        }
+                        if (epcmoaClass.TryGetValue(epc.ClassName, out var epcMOAItem))
+                        {
+                            var key = (drug.Id, epcMOAItem.Id);
+                            if (!drugEPCMOA.ContainsKey(key) && !newDrugEPCMOAs.Any(x => x.DrugId == drug.Id && x.EPCMOAClassId == epcMOAItem.Id))
+                            {
+                                var newEPCMOA = new DrugEPCMOA
+                                {
+                                    DrugId = drug.Id,
+                                    EPCMOAClassId = epcMOAItem.Id
+                                };
+                                newDrugEPCMOAs.Add(newEPCMOA);
+                                drugEPCMOA[key] = newEPCMOA;
+
+                                // Save in batches
+                                if (newDrugEPCMOAs.Count >= batchSize)
+                                {
+                                    await context.DrugEPCMOAs.AddRangeAsync(newDrugEPCMOAs);
+                                    await context.SaveChangesAsync();
+                                    Console.WriteLine($"Processed DrugEPCMOA batch of {batchSize} at {DateTime.Now}");
+                                    newDrugEPCMOAs.Clear();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (newDrugEPCMOAs.Any())
+            {
+                await context.DrugEPCMOAs.AddRangeAsync(newDrugEPCMOAs);
+                await context.SaveChangesAsync();
+                Console.WriteLine($"Processed final batch of {newDrugEPCMOAs.Count} DrugEPCMOAs at {DateTime.Now}");
+            }
+
         }
+
+
         public async Task AddMediCare()
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -1804,78 +1874,93 @@ namespace SearchTool_ServerSide.Repository
         //          .ToListAsync();
         //     return items;
         // }
-
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsEPCMOA(int drugId, int pageSize = 1000, int pageNumber = 1)
         {
-            var query = from d in _context.Drugs.Where(d => d.DrugClassId == classId)
-                        join dc in _context.DrugClasses on d.DrugClassId equals dc.Id
-                        join di in _context.DrugInsurances.Where(di => di.DrugClassId == classId)
-                            on d.Id equals di.DrugId into diGroup
+            // Get EPCMOA class IDs for the specified drug
+            var epcmoaClassIds = await _context.DrugEPCMOAs
+                .Where(de => de.DrugId == drugId)
+                .Select(de => de.EPCMOAClassId)
+                .Distinct()
+                .ToListAsync();
 
+            // Get all related drug IDs in the same EPCMOA classes
+            var relatedDrugIds = await _context.DrugEPCMOAs
+                .Where(de => epcmoaClassIds.Contains(de.EPCMOAClassId))
+                .Select(de => new { de.DrugId, de.EPCMOAClassId })
+                .Distinct()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // Join Drugs with DrugClasses and DrugInsurances (optional), then with DrugBranches
+            var query = from d in _context.Drugs.Where(d => relatedDrugIds.Select(r => r.DrugId).Contains(d.Id))
+                        from de in _context.EPCMOAClasses.Where(d => relatedDrugIds.Select(r => r.EPCMOAClassId).Contains(d.Id))
+                        join di in _context.DrugInsurances.Where(di => relatedDrugIds.Select(r => r.DrugId).Contains(di.DrugId))
+                            on d.Id equals di.DrugId into diGroup
                         from di in diGroup.DefaultIfEmpty()
                         join db in _context.DrugBranches
-                        on new { DrugNDC = d.NDC, BranchId = di.BranchId }
-                        equals new { db.DrugNDC, db.BranchId }
-                        select new { Drug = d, DrugBranch = db, DrugClass = dc, DrugInsurance = di };
+                            on new { DrugNDC = d.NDC, BranchId = di.BranchId }
+                            equals new { db.DrugNDC, db.BranchId } into dbGroup
+                        from db in dbGroup.DefaultIfEmpty()
+                        select new { Drug = d, DrugBranch = db, DrugClass = de, DrugInsurance = di, };
 
             var list = await query.ToListAsync();
+
             var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
 
-            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
             var insuranceRxDict = await _context.InsuranceRxes
-                                                .Include(ir => ir.InsurancePCN)
-                                                    .ThenInclude(ipcn => ipcn.Insurance)
-                                                .ToDictionaryAsync(x => x.Id);
+                .Include(ir => ir.InsurancePCN)
+                    .ThenInclude(ipcn => ipcn.Insurance)
+                .ToDictionaryAsync(x => x.Id);
 
             var result = list.Select(item =>
             {
+
                 if (item.DrugInsurance != null)
                 {
                     var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
-                    // Override properties from joined tables.
                     dto.DrugClass = item.DrugClass.Name;
-                    dto.DrugName = item.Drug.Name;
+                    dto.DrugName = item.DrugClass.Name;
                     dto.NDCCode = item.Drug.NDC;
-
-                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
+                    dto.DrugClassId = item.DrugClass.Id;
                     if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
                     {
                         dto.insuranceName = insuranceRx.RxGroup;
                         dto.pcn = insuranceRx.InsurancePCN?.PCN;
                         dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
-                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
+                        dto.rxgroup = insuranceRx.RxGroup;
                         dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
-                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
-                        dto.pcnId = insuranceRx.InsurancePCN.Id;
+                        dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                        dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
                         dto.rxgroupId = insuranceRx.Id;
-                        dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                        dto.ApplicationType = item.Drug.ApplicationType;
-                        dto.Route = item.Drug.Route;
-                        dto.Strength = item.Drug.Strength;
-                        dto.Form = item.Drug.Form;
-                        dto.Ingrdient = item.Drug.Ingrdient;
-                        dto.StrengthUnit = item.Drug.StrengthUnit;
-                        dto.Type = item.Drug.Type;
-                        dto.TECode = item.Drug.TECode;
-                        dto.Stock = item.DrugBranch.Stock;
-                        dto.ScriptCode = item.DrugInsurance.ScriptCode;
                     }
+
                     if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
                         dto.branchName = branch.Name;
 
+                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                    dto.ApplicationType = item.Drug.ApplicationType;
+                    dto.Route = item.Drug.Route;
+                    dto.Strength = item.Drug.Strength;
+                    dto.Form = item.Drug.Form;
+                    dto.Ingrdient = item.Drug.Ingrdient;
+                    dto.StrengthUnit = item.Drug.StrengthUnit;
+                    dto.Type = item.Drug.Type;
+                    dto.TECode = item.Drug.TECode;
+                    dto.Stock = item.DrugBranch?.Stock ?? 0;
+                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
                     return dto;
+
                 }
                 else
                 {
-                    // No matching DrugInsurance exists, so create a default instance.
-                    var defaultInsurance = new DrugInsurance
+                    var dummyInsurance = new DrugInsurance
                     {
                         DrugId = item.Drug.Id,
                         NDCCode = item.Drug.NDC,
                         DrugClassId = item.Drug.DrugClassId,
                         Net = 0,
                         date = DateTime.UtcNow,
-                        Prescriber = null,
                         Quantity = "",
                         AcquisitionCost = 0,
                         Discount = 0,
@@ -1884,14 +1969,13 @@ namespace SearchTool_ServerSide.Repository
                         BranchId = 1,
                         InsuranceId = 0,
                         Drug = item.Drug
-
                     };
 
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
+                    var dto = _mapper.Map<DrugsAlternativesReadDto>(dummyInsurance);
                     dto.DrugName = item.Drug.Name;
                     dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClass = item.DrugClass.Name; // Set from DrugClasses table.
+                    dto.DrugClassId = item.DrugClass.Id;
+                    dto.DrugClass = item.DrugClass.Name;
                     dto.insuranceName = null;
                     dto.bin = null;
                     dto.pcn = null;
@@ -1906,250 +1990,260 @@ namespace SearchTool_ServerSide.Repository
                     dto.StrengthUnit = item.Drug.StrengthUnit;
                     dto.Type = item.Drug.Type;
                     dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch.Stock;
-                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
-
+                    dto.Stock = item.DrugBranch?.Stock ?? 0;
+                    dto.ScriptCode = null;
                     return dto;
+
                 }
+
             }).ToList();
 
             return result;
         }
 
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV3(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int drugClassId)
         {
-            var query = from d in _context.Drugs.Where(d => d.DrugClassV3Id == classId)
-
-                        join dc in _context.DrugClassV3s on d.DrugClassV3Id equals dc.Id
-                        join di in _context.DrugInsurances.Where(di => di.DrugClassV3Id == classId)
+            // Step 2: Get all drugs in that class
+            var query = from d in _context.Drugs.Where(d => d.DrugClassId == drugClassId)
+                        join dc in _context.DrugClasses on d.DrugClassId equals dc.Id
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassId == drugClassId)
                             on d.Id equals di.DrugId into diGroup
                         from di in diGroup.DefaultIfEmpty()
                         join db in _context.DrugBranches
-                        on new { DrugNDC = d.NDC, BranchId = di.BranchId }
-                        equals new { db.DrugNDC, db.BranchId }
+                            on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                            equals new { db.DrugNDC, db.BranchId } into dbGroup
+                        from db in dbGroup.DefaultIfEmpty()
                         select new { Drug = d, DrugBranch = db, DrugClass = dc, DrugInsurance = di };
 
             var list = await query.ToListAsync();
+
             var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
 
-            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
             var insuranceRxDict = await _context.InsuranceRxes
-                                                .Include(ir => ir.InsurancePCN)
-                                                    .ThenInclude(ipcn => ipcn.Insurance)
-                                                .ToDictionaryAsync(x => x.Id);
+                .Include(ir => ir.InsurancePCN)
+                    .ThenInclude(ipcn => ipcn.Insurance)
+                .ToDictionaryAsync(x => x.Id);
 
             var result = list.Select(item =>
             {
-                if (item.DrugInsurance != null)
+                var di = item.DrugInsurance;
+
+                var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
                 {
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
-                    // Override properties from joined tables.
-                    dto.DrugClass = item.DrugClass.Name;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
+                    DrugId = item.Drug.Id,
+                    NDCCode = item.Drug.NDC,
+                    DrugClassId = item.Drug.DrugClassId,
+                    Net = 0,
+                    date = DateTime.UtcNow,
+                    Quantity = "",
+                    AcquisitionCost = 0,
+                    Discount = 0,
+                    InsurancePayment = 0,
+                    PatientPayment = 0,
+                    BranchId = 1,
+                    InsuranceId = 0,
+                    Drug = item.Drug
+                });
 
-                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
-                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
-                    {
-                        dto.insuranceName = insuranceRx.RxGroup;
-                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
-                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
-                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
-                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
-                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
-                        dto.pcnId = insuranceRx.InsurancePCN.Id;
-                        dto.rxgroupId = insuranceRx.Id;
-                        dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                        dto.ApplicationType = item.Drug.ApplicationType;
-                        dto.Route = item.Drug.Route;
-                        dto.Strength = item.Drug.Strength;
-                        dto.Form = item.Drug.Form;
-                        dto.Ingrdient = item.Drug.Ingrdient;
-                        dto.StrengthUnit = item.Drug.StrengthUnit;
-                        dto.Type = item.Drug.Type;
-                        dto.TECode = item.Drug.TECode;
-                        dto.Stock = item.DrugBranch.Stock;
-                        dto.ScriptCode = item.DrugInsurance.ScriptCode;
+                dto.DrugName = item.Drug.Name;
+                dto.NDCCode = item.Drug.NDC;
+                dto.DrugClassId = item.Drug.DrugClassId;
+                dto.DrugClass = item.DrugClass.Name;
 
-                    }
-                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
-                        dto.branchName = branch.Name;
+                dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                dto.ApplicationType = item.Drug.ApplicationType;
+                dto.Route = item.Drug.Route;
+                dto.Strength = item.Drug.Strength;
+                dto.Form = item.Drug.Form;
+                dto.Ingrdient = item.Drug.Ingrdient;
+                dto.StrengthUnit = item.Drug.StrengthUnit;
+                dto.Type = item.Drug.Type;
+                dto.TECode = item.Drug.TECode;
+                dto.Stock = item.DrugBranch?.Stock ?? 0;
+                dto.ScriptCode = di?.ScriptCode;
 
-                    return dto;
-                }
-                else
+                if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
                 {
-                    // No matching DrugInsurance exists, so create a default instance.
-                    var defaultInsurance = new DrugInsurance
-                    {
-                        DrugId = item.Drug.Id,
-                        NDCCode = item.Drug.NDC,
-                        DrugClassId = item.Drug.DrugClassId,
-                        DrugClassV2Id = item.Drug.DrugClassV2Id,
-                        DrugClassV3Id = item.Drug.DrugClassV3Id,
-                        Net = 0,
-                        date = DateTime.UtcNow,
-                        Prescriber = null,
-                        Quantity = "",
-                        AcquisitionCost = 0,
-                        Discount = 0,
-                        InsurancePayment = 0,
-                        PatientPayment = 0,
-                        BranchId = 1,
-                        InsuranceId = 0,
-                        Drug = item.Drug,
-
-                    };
-
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugClass = item.DrugClass.Name;//for v3 class 
-                    dto.insuranceName = null;
-                    dto.bin = null;
-                    dto.pcn = null;
-                    dto.rxgroup = null;
-                    dto.branchName = null;
-                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                    dto.ApplicationType = item.Drug.ApplicationType;
-                    dto.Route = item.Drug.Route;
-                    dto.Strength = item.Drug.Strength;
-                    dto.Form = item.Drug.Form;
-                    dto.Ingrdient = item.Drug.Ingrdient;
-                    dto.StrengthUnit = item.Drug.StrengthUnit;
-                    dto.Type = item.Drug.Type;
-                    dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch.Stock;
-                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
-
-                    return dto;
+                    dto.insuranceName = insuranceRx.RxGroup;
+                    dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                    dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                    dto.rxgroup = insuranceRx.RxGroup;
+                    dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                    dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                    dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
+                    dto.rxgroupId = insuranceRx.Id;
                 }
+
+                if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
+                    dto.branchName = branch.Name;
+
+                return dto;
             }).ToList();
 
             return result;
         }
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV3(int drugClassId)
         {
-            var query = from d in _context.Drugs.Where(d => d.DrugClassV2Id == classId)
-
+            // Step 2: Get all drugs in that class
+            var query = from d in _context.Drugs.Where(d => d.DrugClassV2Id == drugClassId)
                         join dc in _context.DrugClassV2s on d.DrugClassV2Id equals dc.Id
-                        join di in _context.DrugInsurances.Where(di => di.DrugClassV2Id == classId)
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassV2Id == drugClassId)
                             on d.Id equals di.DrugId into diGroup
                         from di in diGroup.DefaultIfEmpty()
                         join db in _context.DrugBranches
-                        on new { DrugNDC = d.NDC, BranchId = di.BranchId }
-                        equals new { db.DrugNDC, db.BranchId }
+                            on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                            equals new { db.DrugNDC, db.BranchId } into dbGroup
+                        from db in dbGroup.DefaultIfEmpty()
                         select new { Drug = d, DrugBranch = db, DrugClass = dc, DrugInsurance = di };
 
             var list = await query.ToListAsync();
+
             var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
 
-            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
             var insuranceRxDict = await _context.InsuranceRxes
-                                                .Include(ir => ir.InsurancePCN)
-                                                    .ThenInclude(ipcn => ipcn.Insurance)
-                                                .ToDictionaryAsync(x => x.Id);
+                .Include(ir => ir.InsurancePCN)
+                    .ThenInclude(ipcn => ipcn.Insurance)
+                .ToDictionaryAsync(x => x.Id);
 
             var result = list.Select(item =>
             {
-                if (item.DrugInsurance != null)
+                var di = item.DrugInsurance;
+
+                var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
                 {
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
-                    // Override properties from joined tables.
-                    dto.DrugClass = item.DrugClass.Name;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
+                    DrugId = item.Drug.Id,
+                    NDCCode = item.Drug.NDC,
+                    DrugClassId = item.Drug.DrugClassId,
+                    Net = 0,
+                    date = DateTime.UtcNow,
+                    Quantity = "",
+                    AcquisitionCost = 0,
+                    Discount = 0,
+                    InsurancePayment = 0,
+                    PatientPayment = 0,
+                    BranchId = 1,
+                    InsuranceId = 0,
+                    Drug = item.Drug
+                });
 
-                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
-                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
-                    {
-                        dto.insuranceName = insuranceRx.RxGroup;
-                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
-                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
-                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
-                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
-                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
-                        dto.pcnId = insuranceRx.InsurancePCN.Id;
-                        dto.rxgroupId = insuranceRx.Id;
-                        dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                        dto.ApplicationType = item.Drug.ApplicationType;
-                        dto.Route = item.Drug.Route;
-                        dto.Strength = item.Drug.Strength;
-                        dto.Form = item.Drug.Form;
-                        dto.Ingrdient = item.Drug.Ingrdient;
-                        dto.StrengthUnit = item.Drug.StrengthUnit;
-                        dto.Type = item.Drug.Type;
-                        dto.TECode = item.Drug.TECode;
-                        dto.Stock = item.DrugBranch.Stock;
-                        dto.ScriptCode = item.DrugInsurance.ScriptCode;
+                dto.DrugName = item.Drug.Name;
+                dto.NDCCode = item.Drug.NDC;
+                dto.DrugClassId = item.Drug.DrugClassId;
+                dto.DrugClass = item.DrugClass.Name;
+                dto.DrugClassV2Id = item.DrugClass.Id;
+                dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                dto.ApplicationType = item.Drug.ApplicationType;
+                dto.Route = item.Drug.Route;
+                dto.Strength = item.Drug.Strength;
+                dto.Form = item.Drug.Form;
+                dto.Ingrdient = item.Drug.Ingrdient;
+                dto.StrengthUnit = item.Drug.StrengthUnit;
+                dto.Type = item.Drug.Type;
+                dto.TECode = item.Drug.TECode;
+                dto.Stock = item.DrugBranch?.Stock ?? 0;
+                dto.ScriptCode = di?.ScriptCode;
 
-                    }
-                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
-                        dto.branchName = branch.Name;
-
-                    return dto;
-                }
-                else
+                if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
                 {
-                    // No matching DrugInsurance exists, so create a default instance.
-                    var defaultInsurance = new DrugInsurance
-                    {
-                        DrugId = item.Drug.Id,
-                        NDCCode = item.Drug.NDC,
-                        DrugClassId = item.Drug.DrugClassId,
-                        DrugClassV2Id = item.Drug.DrugClassV2Id,
-                        DrugClassV3Id = item.Drug.DrugClassV3Id,
-                        Net = 0,
-                        date = DateTime.UtcNow,
-                        Prescriber = null,
-                        Quantity = "",
-                        AcquisitionCost = 0,
-                        Discount = 0,
-                        InsurancePayment = 0,
-                        PatientPayment = 0,
-                        BranchId = 1,
-                        InsuranceId = 0,
-                        Drug = item.Drug,
-
-                    };
-
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugClass = item.DrugClass.Name;//for v3 class 
-                    dto.insuranceName = null;
-                    dto.bin = null;
-                    dto.pcn = null;
-                    dto.rxgroup = null;
-                    dto.branchName = null;
-                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                    dto.ApplicationType = item.Drug.ApplicationType;
-                    dto.Route = item.Drug.Route;
-                    dto.Strength = item.Drug.Strength;
-                    dto.Form = item.Drug.Form;
-                    dto.Ingrdient = item.Drug.Ingrdient;
-                    dto.StrengthUnit = item.Drug.StrengthUnit;
-                    dto.Type = item.Drug.Type;
-                    dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch.Stock;
-                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
-
-                    return dto;
+                    dto.insuranceName = insuranceRx.RxGroup;
+                    dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                    dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                    dto.rxgroup = insuranceRx.RxGroup;
+                    dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                    dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                    dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
+                    dto.rxgroupId = insuranceRx.Id;
                 }
+
+                if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
+                    dto.branchName = branch.Name;
+
+                return dto;
+            }).ToList();
+
+            return result;
+        }
+
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2(int drugClassId)
+        {
+            // Step 2: Get all drugs in that class
+            var query = from d in _context.Drugs.Where(d => d.DrugClassV3Id == drugClassId)
+                        join dc in _context.DrugClassV3s on d.DrugClassV3Id equals dc.Id
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassV3Id == drugClassId)
+                            on d.Id equals di.DrugId into diGroup
+                        from di in diGroup.DefaultIfEmpty()
+                        join db in _context.DrugBranches
+                            on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                            equals new { db.DrugNDC, db.BranchId } into dbGroup
+                        from db in dbGroup.DefaultIfEmpty()
+                        select new { Drug = d, DrugBranch = db, DrugClass = dc, DrugInsurance = di };
+
+            var list = await query.ToListAsync();
+
+            var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
+
+            var insuranceRxDict = await _context.InsuranceRxes
+                .Include(ir => ir.InsurancePCN)
+                    .ThenInclude(ipcn => ipcn.Insurance)
+                .ToDictionaryAsync(x => x.Id);
+
+            var result = list.Select(item =>
+            {
+                var di = item.DrugInsurance;
+
+                var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
+                {
+                    DrugId = item.Drug.Id,
+                    NDCCode = item.Drug.NDC,
+                    DrugClassId = item.Drug.DrugClassId,
+                    Net = 0,
+                    date = DateTime.UtcNow,
+                    Quantity = "",
+                    AcquisitionCost = 0,
+                    Discount = 0,
+                    InsurancePayment = 0,
+                    PatientPayment = 0,
+                    BranchId = 1,
+                    InsuranceId = 0,
+                    Drug = item.Drug
+                });
+
+                dto.DrugName = item.Drug.Name;
+                dto.NDCCode = item.Drug.NDC;
+                dto.DrugClassId = item.Drug.DrugClassId;
+                dto.DrugClass = item.DrugClass.Name;
+                dto.DrugClassV2Id = item.DrugClass.Id;
+                dto.DrugClassV3Id = item.DrugClass.Id;
+                dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                dto.ApplicationType = item.Drug.ApplicationType;
+                dto.Route = item.Drug.Route;
+                dto.Strength = item.Drug.Strength;
+                dto.Form = item.Drug.Form;
+                dto.Ingrdient = item.Drug.Ingrdient;
+                dto.StrengthUnit = item.Drug.StrengthUnit;
+                dto.Type = item.Drug.Type;
+                dto.TECode = item.Drug.TECode;
+                dto.Stock = item.DrugBranch?.Stock ?? 0;
+                dto.ScriptCode = di?.ScriptCode;
+
+                if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
+                {
+                    dto.insuranceName = insuranceRx.RxGroup;
+                    dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                    dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                    dto.rxgroup = insuranceRx.RxGroup;
+                    dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                    dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                    dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
+                    dto.rxgroupId = insuranceRx.Id;
+                }
+
+                if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
+                    dto.branchName = branch.Name;
+
+                return dto;
             }).ToList();
 
             return result;
@@ -2157,123 +2251,85 @@ namespace SearchTool_ServerSide.Repository
 
 
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV4(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV4(int drugClassId)
         {
-            var query = from d in _context.Drugs.Where(d => d.DrugClassV4Id == classId)
-
+            // Step 2: Get all drugs in that class
+            var query = from d in _context.Drugs.Where(d => d.DrugClassV4Id == drugClassId)
                         join dc in _context.DrugClassV4s on d.DrugClassV4Id equals dc.Id
-                        join di in _context.DrugInsurances.Where(di => di.DrugClassV4Id == classId)
+                        join di in _context.DrugInsurances.Where(di => di.DrugClassV4Id == drugClassId)
                             on d.Id equals di.DrugId into diGroup
                         from di in diGroup.DefaultIfEmpty()
                         join db in _context.DrugBranches
-                        on new { DrugNDC = d.NDC, BranchId = di.BranchId }
-                        equals new { db.DrugNDC, db.BranchId }
+                            on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                            equals new { db.DrugNDC, db.BranchId } into dbGroup
+                        from db in dbGroup.DefaultIfEmpty()
                         select new { Drug = d, DrugBranch = db, DrugClass = dc, DrugInsurance = di };
 
             var list = await query.ToListAsync();
+
             var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
 
-            // Load InsuranceRx records including their related InsurancePCN and Insurance (for bin)
             var insuranceRxDict = await _context.InsuranceRxes
-                                                .Include(ir => ir.InsurancePCN)
-                                                    .ThenInclude(ipcn => ipcn.Insurance)
-                                                .ToDictionaryAsync(x => x.Id);
+                .Include(ir => ir.InsurancePCN)
+                    .ThenInclude(ipcn => ipcn.Insurance)
+                .ToDictionaryAsync(x => x.Id);
 
             var result = list.Select(item =>
             {
-                if (item.DrugInsurance != null)
+                var di = item.DrugInsurance;
+
+                var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
                 {
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
-                    // Override properties from joined tables.
-                    dto.DrugClass = item.DrugClass.Name;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugClassV4Id = item.Drug.DrugClassV4Id;
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
+                    DrugId = item.Drug.Id,
+                    NDCCode = item.Drug.NDC,
+                    DrugClassId = item.Drug.DrugClassId,
+                    Net = 0,
+                    date = DateTime.UtcNow,
+                    Quantity = "",
+                    AcquisitionCost = 0,
+                    Discount = 0,
+                    InsurancePayment = 0,
+                    PatientPayment = 0,
+                    BranchId = 1,
+                    InsuranceId = 0,
+                    Drug = item.Drug
+                });
 
-                    // Use the InsuranceRx dictionary to set insuranceName, pcn, bin, and rxgroup.
-                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
-                    {
-                        dto.insuranceName = insuranceRx.RxGroup;
-                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
-                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
-                        dto.rxgroup = insuranceRx.RxGroup; // Adjust if rxgroup should be different.
-                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
-                        dto.binId = insuranceRx.InsurancePCN.Insurance.Id;
-                        dto.pcnId = insuranceRx.InsurancePCN.Id;
-                        dto.rxgroupId = insuranceRx.Id;
-                        dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                        dto.ApplicationType = item.Drug.ApplicationType;
-                        dto.Route = item.Drug.Route;
-                        dto.Strength = item.Drug.Strength;
-                        dto.Form = item.Drug.Form;
-                        dto.Ingrdient = item.Drug.Ingrdient;
-                        dto.StrengthUnit = item.Drug.StrengthUnit;
-                        dto.Type = item.Drug.Type;
-                        dto.TECode = item.Drug.TECode;
-                        dto.Stock = item.DrugBranch.Stock;
-                        dto.ScriptCode = item.DrugInsurance.ScriptCode;
+                dto.DrugName = item.Drug.Name;
+                dto.NDCCode = item.Drug.NDC;
+                dto.DrugClassId = item.Drug.DrugClassId;
+                dto.DrugClass = item.DrugClass.Name;
+                dto.DrugClassV2Id = item.DrugClass.Id;
+                dto.DrugClassV3Id = item.DrugClass.Id;
+                dto.DrugClassV4Id = item.DrugClass.Id;
+                dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                dto.ApplicationType = item.Drug.ApplicationType;
+                dto.Route = item.Drug.Route;
+                dto.Strength = item.Drug.Strength;
+                dto.Form = item.Drug.Form;
+                dto.Ingrdient = item.Drug.Ingrdient;
+                dto.StrengthUnit = item.Drug.StrengthUnit;
+                dto.Type = item.Drug.Type;
+                dto.TECode = item.Drug.TECode;
+                dto.Stock = item.DrugBranch?.Stock ?? 0;
+                dto.ScriptCode = di?.ScriptCode;
 
-                    }
-                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
-                        dto.branchName = branch.Name;
-
-                    return dto;
-                }
-                else
+                if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
                 {
-                    // No matching DrugInsurance exists, so create a default instance.
-                    var defaultInsurance = new DrugInsurance
-                    {
-                        DrugId = item.Drug.Id,
-                        NDCCode = item.Drug.NDC,
-                        DrugClassId = item.Drug.DrugClassId,
-                        DrugClassV2Id = item.Drug.DrugClassV2Id,
-                        DrugClassV3Id = item.Drug.DrugClassV3Id,
-                        DrugClassV4Id = item.Drug.DrugClassV4Id,
-                        Net = 0,
-                        date = DateTime.UtcNow,
-                        Prescriber = null,
-                        Quantity = "",
-                        AcquisitionCost = 0,
-                        Discount = 0,
-                        InsurancePayment = 0,
-                        PatientPayment = 0,
-                        BranchId = 1,
-                        InsuranceId = 0,
-                        Drug = item.Drug,
-
-                    };
-
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(defaultInsurance);
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.Drug.DrugClassId;
-                    dto.DrugClassV2Id = item.Drug.DrugClassV2Id;
-                    dto.DrugClassV3Id = item.Drug.DrugClassV3Id;
-                    dto.DrugClassV4Id = item.Drug.DrugClassV4Id;
-                    dto.DrugClass = item.DrugClass.Name;//for v3 class 
-                    dto.insuranceName = null;
-                    dto.bin = null;
-                    dto.pcn = null;
-                    dto.rxgroup = null;
-                    dto.branchName = null;
-                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                    dto.ApplicationType = item.Drug.ApplicationType;
-                    dto.Route = item.Drug.Route;
-                    dto.Strength = item.Drug.Strength;
-                    dto.Form = item.Drug.Form;
-                    dto.Ingrdient = item.Drug.Ingrdient;
-                    dto.StrengthUnit = item.Drug.StrengthUnit;
-                    dto.Type = item.Drug.Type;
-                    dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch.Stock;
-                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
-
-                    return dto;
+                    dto.insuranceName = insuranceRx.RxGroup;
+                    dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                    dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                    dto.rxgroup = insuranceRx.RxGroup;
+                    dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                    dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                    dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
+                    dto.rxgroupId = insuranceRx.Id;
                 }
+
+                if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
+                    dto.branchName = branch.Name;
+
+                return dto;
             }).ToList();
 
             return result;
@@ -2413,6 +2469,8 @@ namespace SearchTool_ServerSide.Repository
             public string? ClassV3 { get; set; }
             [Name("EPC_Class_Name_Cleaned")]
             public string? ClassV4 { get; set; }
+            [Name("PHARM_CLASSES")]
+            public string? PHARM_CLASSES { get; set; }
         }
         internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
         {

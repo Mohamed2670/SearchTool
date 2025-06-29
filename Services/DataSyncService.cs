@@ -304,7 +304,7 @@ public class DataSyncService
         public DateTime Date { get; set; }
     }
 
-    public async Task ImportLogsFromCsvWithoutIdAsync(string filePath = "logs (5).csv")
+    public async Task ImportLogsFromCsvWithoutIdAsync(string filePath = "logs (1).csv")
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {

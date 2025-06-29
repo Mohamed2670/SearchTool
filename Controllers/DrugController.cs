@@ -130,6 +130,12 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllLatestScripts();
             return Ok(items);
         }
+        [HttpGet("GetAllDrugsEPCMOA"),AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsEPCMOA([FromQuery] int drugId,[FromQuery]int pageSize=1000,[FromQuery]int pageNumber=1)
+        {
+            var items = await _drugService.GetAllDrugsEPCMOA(drugId,pageSize,pageNumber);
+            return Ok(items);
+        }
         [HttpGet("GetAllDrugs"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {

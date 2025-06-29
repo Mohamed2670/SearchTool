@@ -119,7 +119,11 @@ namespace SearchTool_ServerSide.Services
             Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;
         }
-
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsEPCMOA(int drugId,int pageSize = 1000, int pageNumber = 1)
+        {
+            var items = await _drugRepository.GetAllDrugsEPCMOA( drugId, pageSize, pageNumber);
+            return items;
+        }   
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
         {
             var items = await _drugRepository.GetAllDrugs(classId);
