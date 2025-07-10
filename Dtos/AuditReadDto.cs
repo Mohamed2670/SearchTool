@@ -3,6 +3,7 @@ namespace SearchTool_ServerSide.Dtos
     public class AuditReadDto
     {
         public DateTime Date { get; set; }
+        public int RemainingStock { get; set; } = 100;
         public string ScriptCode { get; set; }
         public string RxNumber { get; set; }
         public string? User { get; set; }
@@ -12,7 +13,7 @@ namespace SearchTool_ServerSide.Dtos
         public int InsuranceId { get; set; }
         public string PF { get; set; }
         public string Prescriber { get; set; }
-        public string Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

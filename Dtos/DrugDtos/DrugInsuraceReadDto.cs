@@ -12,7 +12,7 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public decimal Net { get; set; }
         public DateTime date { get; set; }
         public string Prescriber { get; set; }
-        public string Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

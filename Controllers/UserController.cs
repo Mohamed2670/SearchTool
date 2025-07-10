@@ -41,7 +41,7 @@ namespace SearchTool_ServerSide.Controllers
             };
             Response.Cookies.Append("refreshToken", tokens.Value.refreshToken, cookieOptions);
 
-            return Ok(new { accessToken = tokens.Value.accessToken, role = user.Role.ToString() });
+            return Ok(new { accessToken = tokens.Value.accessToken, role = user.Role.ToString(), classType = tokens.Value.classType, userId = tokens.Value.userId, branchId = tokens.Value.branchId });
         }
 
         [HttpGet("token-test")]

@@ -28,7 +28,7 @@ namespace SearchTool_ServerSide.Services
             return userReadDto;
         }
 
-        internal async Task<(string accessToken, string refreshToken, string userId, string branchId)?> Login(UserLoginDto userLoginDto)
+        internal async Task<(string accessToken, string refreshToken, string userId, string branchId, string classType)?> Login(UserLoginDto userLoginDto)
         {
             
             var user = await _userRepository.GetUserByEmail(userLoginDto.Email);
@@ -36,7 +36,7 @@ namespace SearchTool_ServerSide.Services
             {
                 return null;
             }
-
+            var mainCompany = await _branchRepository.GetMainCompanyByBranchId(user.BranchId); 
             if (!BCrypt.Net.BCrypt.Verify(userLoginDto.Password, user.Password))
             {
                 return null;
@@ -54,7 +54,7 @@ namespace SearchTool_ServerSide.Services
             var refreshToken = TokenGenerate(user, expiresInMinutes: 480);
             var userId = user.Id.ToString();
             var branchId = user.BranchId.ToString();
-            return (accessToken, refreshToken, userId, branchId);
+            return (accessToken, refreshToken, userId, branchId, mainCompany.ClassType.Name ?? "ClassV1");
         }
 
         public string TokenGenerate(User user, int expiresInMinutes = 60, int expiresInDays = 0)

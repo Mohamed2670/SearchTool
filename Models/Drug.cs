@@ -9,15 +9,7 @@ namespace SearchTool_ServerSide.Models
         public required string NDC { get; set; }
         public string? Form { get; set; }
         public string? Strength { get; set; }
-        public int DrugClassId { get; set; }
-        public DrugClass? DrugClass { get; set; }
-        public int DrugClassV2Id { get; set; }
-        public DrugClassV2? DrugClassV2 { get; set; }
-        public int DrugClassV3Id { get; set; }
-        public DrugClassV3? DrugClassV3 { get; set; }
-        public int DrugClassV4Id { get; set; }
-        public DrugClassV4? DrugClassV4 { get; set; }
-        public ICollection<DrugEPCMOA> DrugEPCMOAs { get; set; } = new List<DrugEPCMOA>();
+        public ICollection<DrugClass> DrugClasses { get; set; } = new List<DrugClass>();
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

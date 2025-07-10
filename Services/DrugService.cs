@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AutoMapper;
 using SearchTool_ServerSide.Dtos;
+using SearchTool_ServerSide.Dtos.ClassDtos;
 using SearchTool_ServerSide.Dtos.DrugDtos;
 using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
 using SearchTool_ServerSide.Dtos.ScritpsDto;
@@ -26,7 +27,7 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        public async Task<ICollection<Drug>> GetClassesByName(string name, int pageNumber, int pageSize)
+        public async Task<ICollection<ClassInfo>> GetClassesByName(string name, int pageNumber, int pageSize)
         {
             var items = await _drugRepository.GetClassesByName(name, pageNumber, pageSize);
             return items;
@@ -51,12 +52,7 @@ namespace SearchTool_ServerSide.Services
             return item;
         }
 
-        internal async Task<ICollection<DrugInsurance>> GetAltrantives(string className, int insuranceId)
-        {
-            var items = await _drugRepository.GetAltrantives(className, insuranceId);
-            return items;
 
-        }
 
 
 
@@ -71,7 +67,11 @@ namespace SearchTool_ServerSide.Services
             var item = await _drugRepository.GetDrugByNdc(ndc);
             return item;
         }
-
+        internal async Task<ICollection<EPCMOAClass>> GetEPCMOAClassesByDrugId(int drugId)
+        {
+            var items = await _drugRepository.GetEPCMOAClassesByDrugId(drugId);
+            return items;
+        }
         internal async Task<DrugsAlternativesReadDto> GetDetails(string ndc, int insuranceId)
         {
             var item = await _drugRepository.GetDetails(ndc, insuranceId);
@@ -89,7 +89,10 @@ namespace SearchTool_ServerSide.Services
             var item = await _drugRepository.getClassbyId(id);
             return item;
         }
-
+        internal async Task<IEnumerable<ClassInfoReadDto>> GetClassesByDrugId(int drugId)
+        {
+            return await _drugRepository.GetClassesByDrugId(drugId);
+        }
         internal async Task<ICollection<Drug>> GetDrugsByClass(int classId)
         {
             var items = await _drugRepository.GetDrugsByClass(classId);
@@ -101,16 +104,8 @@ namespace SearchTool_ServerSide.Services
             var items = await _drugRepository.GetAllLatest();
             return items;
         }
-        internal async Task<ICollection<AuditReadDto>> GetAllLatestScripts()
-        {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-            var items = await _drugRepository.GetAllLatestScripts();
-            stopwatch.Stop();
-            Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
-            return items;
-        }
-        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000, int classVersion = 1)
+
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000, string classVersion = "ClassV1")
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -119,36 +114,17 @@ namespace SearchTool_ServerSide.Services
             Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;
         }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsEPCMOA(int drugId,int pageSize = 1000, int pageNumber = 1)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsEPCMOA(int drugId, int pageSize = 1000, int pageNumber = 1)
         {
-            var items = await _drugRepository.GetAllDrugsEPCMOA( drugId, pageSize, pageNumber);
+            var items = await _drugRepository.GetAllDrugsEPCMOA(drugId, pageSize, pageNumber);
             return items;
-        }   
+        }
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
         {
             var items = await _drugRepository.GetAllDrugs(classId);
             return items;
         }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2(int classId)
-        {
-            var items = await _drugRepository.GetAllDrugsV2(classId);
-            return items;
-        }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV3(int classId)
-        {
-            var items = await _drugRepository.GetAllDrugsV3(classId);
-            return items;
-        }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV4(int classId)
-        {
-            var items = await _drugRepository.GetAllDrugsV4(classId);
-            return items;
-        }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV2Insu(int classId)
-        {
-            var items = await _drugRepository.GetAllDrugsV2Insu(classId);
-            return items;
-        }
+
 
         internal async Task<Drug> GetDrugById(int id)
         {
@@ -190,11 +166,6 @@ namespace SearchTool_ServerSide.Services
             return item;
         }
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAlternativesByClassIdBranchId(int classId, int branchId)
-        {
-            var items = await _drugRepository.GetAlternativesByClassIdBranchId(classId, branchId);
-            return items;
-        }
 
         internal async Task<ICollection<Drug>> GetDrugsByInsurance(int insuranceId, string drug)
         {
@@ -266,11 +237,11 @@ namespace SearchTool_ServerSide.Services
             await _drugRepository.AddScripts(scriptAddDtos);
         }
 
-        internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
-        {
-            var items = await _drugRepository.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
-            return items;
-        }
+        // internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
+        // {
+        //     var items = await _drugRepository.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
+        //     return items;
+        // }
         internal async Task AddMediCare()
         {
             await _drugRepository.AddMediCare();
@@ -295,28 +266,27 @@ namespace SearchTool_ServerSide.Services
             return await _drugRepository.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
         }
 
-        internal async Task<ICollection<Drug>> GetDrugClassesByInsuranceNamePagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        internal async Task<ICollection<DrugModal>> GetDrugClassesByInsuranceNamePagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
         {
-            var items = await _drugRepository.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugRepository.GetDrugClassesByInsuranceNamePaginated(insurance, drugClassName, pageSize, pageNumber, ClassVersion);
             return items;
         }
 
-        internal async Task<ICollection<Drug>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        internal async Task<ICollection<ClassInfo>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
         {
-            var items = await _drugRepository.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugRepository.GetDrugClassesByPCNPaginated(insurance, drugClassName, pageSize, pageNumber, ClassVersion);
             return items;
         }
 
-        internal async Task<ICollection<Drug>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber)
+        internal async Task<ICollection<ClassInfo>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
         {
-            var items = await _drugRepository.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugRepository.GetDrugClassesByBINPaginated(insurance, drugClassName, pageSize, pageNumber, ClassVersion);
             return items;
         }
 
-        internal async Task<ICollection<FullDrugReadDto>> GetAllDrugsWithClassNames()
+        internal async Task<IEnumerable<Drug>> GetDrugsByClassId(int classId,string ClassType, int pageSize, int pageNumber)
         {
-            var drugs = await _drugRepository.GetAllDrugsWithClassNames();
-            return drugs;
+            return await _drugRepository.GetDrugsByClassId(classId, ClassType, pageSize, pageNumber);
         }
     }
 }

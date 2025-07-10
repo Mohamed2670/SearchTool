@@ -9,17 +9,12 @@ namespace SearchTool_ServerSide.Models
         public required int BranchId { get; set; }
 
         public required string NDCCode { get; set; }
-        public int DrugClassId { get; set; }
-        public int DrugClassV2Id { get; set; }
-
-        public int DrugClassV3Id { get; set; }
-        public int DrugClassV4Id { get; set; }
         public string? ScriptCode { get; set; }
 
         public decimal Net { get; set; }
-        public DateTime date { get; set; }
+        public DateTime Date { get; set; }
         public string Prescriber { get; set; }
-        public string Quantity { get; set; }
+        public decimal Quantity { get; set; } = 1;
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

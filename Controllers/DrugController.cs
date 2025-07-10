@@ -36,7 +36,12 @@ namespace SearchTool_ServerSide.Controllers
             var item = await _drugService.SearchByNdc(ndc);
             return Ok(item);
         }
-
+        [HttpGet("GetEPCMOAClassesByDrugId"), AllowAnonymous]
+        public async Task<IActionResult> GetEPCMOAClassesByDrugId([FromQuery] int drugId)
+        {
+            var items = await _drugService.GetEPCMOAClassesByDrugId(drugId);
+            return Ok(items);
+        }
         [HttpGet("searchByName")]
         public async Task<IActionResult> SearchByname([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
@@ -80,12 +85,7 @@ namespace SearchTool_ServerSide.Controllers
             var item = await _drugService.GetBySelection(name, ndc, insuranceName);
             return Ok(item);
         }
-        [HttpGet("GetAltrantives"), AllowAnonymous]
-        public async Task<IActionResult> GetAltrantives([FromQuery] string className, [FromQuery] int insuranceId)
-        {
-            var items = await _drugService.GetAltrantives(className, insuranceId);
-            return Ok(items);
-        }
+
         [HttpGet("GetDetails")]
         public async Task<IActionResult> GetDetails([FromQuery] string ndc, [FromQuery] int insuranceId)
         {
@@ -103,6 +103,12 @@ namespace SearchTool_ServerSide.Controllers
         {
             var item = await _drugService.getClassbyId(id);
             return Ok(item);
+        }
+        [HttpGet("GetClassesByDrugId")]
+        public async Task<IActionResult> GetClassesByDrugId([FromQuery] int drugId)
+        {
+            var items = await _drugService.GetClassesByDrugId(drugId);
+            return Ok(items);
         }
         [HttpGet("GetDrugsByClass")]
         public async Task<IActionResult> GetDrugsByClass([FromQuery] int classId)
@@ -124,46 +130,16 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllLatestScripts"), AllowAnonymous]
-        public async Task<IActionResult> GetAllLatestScripts()
+        [HttpGet("GetAllDrugsEPCMOA"), AllowAnonymous]
+        public async Task<IActionResult> GetAllDrugsEPCMOA([FromQuery] int drugId, [FromQuery] int pageSize = 1000, [FromQuery] int pageNumber = 1)
         {
-            var items = await _drugService.GetAllLatestScripts();
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsEPCMOA"),AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsEPCMOA([FromQuery] int drugId,[FromQuery]int pageSize=1000,[FromQuery]int pageNumber=1)
-        {
-            var items = await _drugService.GetAllDrugsEPCMOA(drugId,pageSize,pageNumber);
+            var items = await _drugService.GetAllDrugsEPCMOA(drugId, pageSize, pageNumber);
             return Ok(items);
         }
         [HttpGet("GetAllDrugs"), AllowAnonymous]
         public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugs(classId);
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsV2"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsV2([FromQuery] int classId)
-        {
-            var items = await _drugService.GetAllDrugsV2(classId);
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsV3"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsV3([FromQuery] int classId)
-        {
-            var items = await _drugService.GetAllDrugsV3(classId);
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsV4"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsV4([FromQuery] int classId)
-        {
-            var items = await _drugService.GetAllDrugsV4(classId);
-            return Ok(items);
-        }
-        [HttpGet("GetAllDrugsV2Insu"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsV2Insu([FromQuery] int classId)
-        {
-            var items = await _drugService.GetAllDrugsV2Insu(classId);
             return Ok(items);
         }
         [HttpGet("GetDrugById"), AllowAnonymous]
@@ -206,22 +182,6 @@ namespace SearchTool_ServerSide.Controllers
             return Ok();
         }
 
-        [HttpGet("GetAlternativesByClassIdBranchId")]
-        public async Task<IActionResult> GetAlternativesByClassIdBranchId([FromQuery] int classId)
-        {
-            var userData = userAccessToken.tokenData();
-            if (userData == null || string.IsNullOrEmpty(userData.UserId))
-            {
-                return Unauthorized("Invalid or missing token data");
-            }
-
-            if (!int.TryParse(userData.BranchId, out int branchId))
-            {
-                return BadRequest("Invalid user ID format");
-            }
-            var items = await _drugService.GetAlternativesByClassIdBranchId(classId, branchId);
-            return Ok(items);
-        }
         [HttpGet("GetDrugsByInsurance")]
         public async Task<IActionResult> GetDrugsByInsurance([FromQuery] int insuranceId, [FromQuery] string drug)
         {
@@ -299,7 +259,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin"), Authorize]
-        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] int classVersion = 1)
+        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string classVersion = "ClassV1")
         {
             var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize, classVersion);
             return Ok(items);
@@ -323,16 +283,7 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.AddScripts(scriptAddDtos);
             return Ok("Items Added Succesfuly");
         }
-        [HttpGet("GetBestAlternativeByNDCRxGroupId"), AllowAnonymous]
-        public async Task<IActionResult> GetBestAlternativeByNDCRxGroupId([FromQuery] int classId, [FromQuery] int rxGroupId)
-        {
-            var items = await _drugService.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
-            if (items == null)
-            {
-                return NotFound("No alternatives found for the given classId and rxGroupId.");
-            }
-            return Ok(items);
-        }
+
         [HttpGet("AddMediCare"), AllowAnonymous]
         public async Task<IActionResult> AddMediCare()
         {
@@ -359,34 +310,40 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetDrugClassesByBINPagintated"), AllowAnonymous]
-        public async Task<IActionResult> GetDrugClassesByBINPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetDrugClassesByBINPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
-            var items = await _drugService.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
             return Ok(items);
         }
-        [HttpGet("GetAllDrugsWithClassNames"), AllowAnonymous]
-        public async Task<IActionResult> GetAllDrugsWithClassNames()
+        [HttpGet("GetDrugsByClassId")]
+        public async Task<IActionResult> GetDrugsByClassId([FromQuery] int classId, [FromQuery] string classType, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
-            var DrugDB = await _drugService.GetAllDrugsWithClassNames();
-            // Serialize DrugDB to CSV
-            var csv = new System.Text.StringBuilder();
-            // Add header
-            if (DrugDB.Any())
-            {
-                var properties = typeof(SearchTool_ServerSide.Dtos.DrugDtos.FullDrugReadDto).GetProperties();
-                csv.AppendLine(string.Join(",", properties.Select(p => p.Name)));
-                foreach (var item in DrugDB)
-                {
-                    csv.AppendLine(string.Join(",", properties.Select(p =>
-                    {
-                        var value = p.GetValue(item, null);
-                        return value != null ? value.ToString().Replace(",", " ") : "";
-                    })));
-                }
-            }
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
-            return File(bytes, "text/csv", "DrugDB.csv");
+            var items = await _drugService.GetDrugsByClassId(classId, classType, pageSize, pageNumber);
+            return Ok(items);
         }
+        // [HttpGet("GetAllDrugsWithClassNames"), AllowAnonymous]
+        // public async Task<IActionResult> GetAllDrugsWithClassNames()
+        // {
+        //     var DrugDB = await _drugService.GetAllDrugsWithClassNames();
+        //     // Serialize DrugDB to CSV
+        //     var csv = new System.Text.StringBuilder();
+        //     // Add header
+        //     if (DrugDB.Any())
+        //     {
+        //         var properties = typeof(SearchTool_ServerSide.Dtos.DrugDtos.FullDrugReadDto).GetProperties();
+        //         csv.AppendLine(string.Join(",", properties.Select(p => p.Name)));
+        //         foreach (var item in DrugDB)
+        //         {
+        //             csv.AppendLine(string.Join(",", properties.Select(p =>
+        //             {
+        //                 var value = p.GetValue(item, null);
+        //                 return value != null ? value.ToString().Replace(",", " ") : "";
+        //             })));
+        //         }
+        //     }
+        //     var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
+        //     return File(bytes, "text/csv", "DrugDB.csv");
+        // }
 
     }
 }

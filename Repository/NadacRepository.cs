@@ -78,7 +78,7 @@ namespace SearchTool_ServerSide.Repository
                 if (diDict.TryGetValue(drugInsuranceKey, out var existingDrugInsurance))
                 {
                     // Update existing record
-                    existingDrugInsurance.date = DateTime.UtcNow;
+                    existingDrugInsurance.Date = DateTime.UtcNow;
                     existingDrugInsurance.InsurancePayment = record.NadacPerUnit != null
                                ? record.NadacPerUnit * 0.9m
                                : 0m;

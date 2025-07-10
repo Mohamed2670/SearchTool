@@ -42,7 +42,7 @@ namespace SearchTool_ServerSide.Data
 
             modelBuilder.Entity<ClassInsurance>(entity =>
             {
-                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassId, ci.Date, ci.BranchId });
+                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassInfoId, ci.Date, ci.BranchId });
 
                 // Define foreign key relationships
                 entity.HasOne(ci => ci.Insurance)
@@ -50,9 +50,9 @@ namespace SearchTool_ServerSide.Data
                     .HasForeignKey(ci => ci.InsuranceId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(ci => ci.DrugClass)
+                entity.HasOne(ci => ci.ClassInfo)
                     .WithMany()
-                    .HasForeignKey(ci => ci.ClassId)
+                    .HasForeignKey(ci => ci.ClassInfoId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(ci => ci.Branch)
                 .WithMany()
@@ -108,6 +108,7 @@ namespace SearchTool_ServerSide.Data
 
         public DbSet<Drug> Drugs { get; set; }
         public DbSet<DrugClass> DrugClasses { get; set; }
+        public DbSet<ClassInfo> ClassInfos { get; set; }
         public DbSet<DrugInsurance> DrugInsurances { get; set; }
         public DbSet<Insurance> Insurances { get; set; }
         public DbSet<Script> Scripts { get; set; }
@@ -134,31 +135,35 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugMedi> DrugMedis { get; set; }
         public DbSet<DrugEPCMOA> DrugEPCMOAs { get; set; }
         public DbSet<EPCMOAClass> EPCMOAClasses { get; set; }
-
+        public DbSet<ClassType> ClassTypes { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
             // Define Composite Keys
+            modelBuilder.Entity<DrugClass>(entity =>
+            {
+                entity.HasKey(dc => new { dc.DrugId, dc.ClassId });
+
+                // Define foreign key relationships
+                entity.HasOne(dc => dc.Drug)
+                    .WithMany(d => d.DrugClasses)
+                    .HasForeignKey(dc => dc.DrugId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(dc => dc.ClassInfo)
+                    .WithMany(c => c.DrugClasses)
+                    .HasForeignKey(dc => dc.ClassId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
             modelBuilder.Entity<DrugInsurance>(entity =>
             {
                 entity.HasKey(item => new { item.InsuranceId, item.DrugId, item.BranchId });
             });
-            modelBuilder.Entity<DrugEPCMOA>(entity =>
-            {
-                entity.HasKey(x => new { x.DrugId, x.EPCMOAClassId });
-                entity.HasOne(x => x.Drug)
-                      .WithMany(d => d.DrugEPCMOAs)
-                      .HasForeignKey(x => x.DrugId);
 
-                entity.HasOne(x => x.EPCMOAClass)
-                      .WithMany(c => c.DrugEPCMOAs)
-                      .HasForeignKey(x => x.EPCMOAClassId);
-
-            });
             modelBuilder.Entity<ClassInsurance>(entity =>
             {
-                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassId, ci.Date, ci.BranchId });
+                entity.HasKey(ci => new { ci.InsuranceId, ci.ClassInfoId, ci.Date, ci.BranchId });
 
                 // Define foreign key relationships
                 entity.HasOne(ci => ci.Insurance)
@@ -166,9 +171,9 @@ namespace SearchTool_ServerSide.Data
                     .HasForeignKey(ci => ci.InsuranceId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne(ci => ci.DrugClass)
+                entity.HasOne(ci => ci.ClassInfo)
                     .WithMany()
-                    .HasForeignKey(ci => ci.ClassId)
+                    .HasForeignKey(ci => ci.ClassInfoId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasOne(ci => ci.Branch)
                 .WithMany()
@@ -191,14 +196,14 @@ namespace SearchTool_ServerSide.Data
                       .HasForeignKey(db => db.BranchId)
                       .OnDelete(DeleteBehavior.Cascade);
             });
-
+            modelBuilder.Entity<ClassType>().HasData(new { Id = 1, Name = "TestClass", Description = "Just for Testing" });
             modelBuilder.Entity<Specialty>().HasData(
-                          new { Id = 1, Name = "Dermatology specialty", }
+                          new { Id = 1, Name = "Dermatology specialty" }
                       );
             // Seed Data for Branches
             modelBuilder.Entity<MainCompany>().HasData(
-               new { Id = 1, Name = "California Dermatology", SpecialtyId = 1 },
-               new { Id = 2, Name = "Spark Medi-Cal", SpecialtyId = 1 }
+               new { Id = 1, Name = "California Dermatology", SpecialtyId = 1, ClassTypeId = 1 },
+               new { Id = 2, Name = "Spark Medi-Cal", SpecialtyId = 1, ClassTypeId = 1 }
            );
             modelBuilder.Entity<Branch>().HasData(
                 new Branch { Id = 1, Name = "California Dermatology Institute Thousand Oaks", Location = "Thousand Oaks", Code = "1", MainCompanyId = 1 },
@@ -313,6 +318,7 @@ namespace SearchTool_ServerSide.Data
                     .HasForeignKey(e => e.PcnId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
         }
     }
 

@@ -23,7 +23,8 @@ public class DataSyncService
         {
             HasHeaderRecord = true,
             Encoding = Encoding.UTF8,
-            MissingFieldFound = null // Ignore missing fields
+            MissingFieldFound = null,    // Ignore missing fields
+            HeaderValidated = null       // Ignore missing headers
         };
 
         using var reader = new StreamReader(filePath, Encoding.UTF8);

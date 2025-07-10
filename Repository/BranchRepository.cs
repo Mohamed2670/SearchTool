@@ -14,7 +14,14 @@ namespace SearchTool_ServerSide.Repository
             _context = context;
             _mapper = mapper;
         }
-        
 
+        internal async Task<MainCompany> GetMainCompanyByBranchId(int branchId)
+        {
+            var branch = await _context.Branches
+                .Include(b => b.MainCompany)
+                .Include(b=> b.MainCompany.ClassType)
+                .FirstOrDefaultAsync(b => b.Id == branchId);
+            return branch?.MainCompany;
+        }
     }
 }

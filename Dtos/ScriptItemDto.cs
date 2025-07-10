@@ -15,7 +15,7 @@ namespace SearchTool_ServerSide.Dtos
 
         // Script Item Details
         public string PF { get; set; }
-        public string Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }

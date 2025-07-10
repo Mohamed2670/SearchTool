@@ -17,15 +17,13 @@ namespace SearchTool_ServerSide.Models
         public int InsuranceId { get; set; }
         public InsuranceRx Insurance { get; set; }
 
-        public int DrugClassId { get; set; }
-        public DrugClass DrugClass { get; set; }
-
         public string UserEmail { get; set; }
         public User Prescriber { get; set; }
 
         // Script Item Details
         public string PF { get; set; }
-        public string Quantity { get; set; }
+        public decimal Quantity { get; set; } = 1;
+        public int RemainingStock { get; set; } = 100;
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }
