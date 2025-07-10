@@ -48,16 +48,62 @@ namespace SearchTool_ServerSide.Repository
                 .ToListAsync();
             return items;
         }
-        public async Task<ICollection<ClassInfo>> GetClassesByName(string name, int pageNumber, int pageSize = 20)
+        public async Task<ICollection<DrugModal>> GetClassesByName(
+            string name,
+            string classVersion,
+            int pageNumber,
+            int pageSize = 20)
         {
-            var items = await _context.ClassInfos
-                .Where(x => x.Name.ToLower().Contains(name.ToLower()))
+            // Step 1: SQL query — filter & order
+            var query =
+                from dc in _context.DrugClasses
+                join drug in _context.Drugs on dc.DrugId equals drug.Id
+                join ci in _context.ClassInfos on dc.ClassId equals ci.Id
+                join ct in _context.ClassTypes on ci.ClassTypeId equals ct.Id
+                where EF.Functions.ILike(ci.Name, $"%{name}%")
+                   && EF.Functions.ILike(ct.Name, classVersion)
+                orderby ci.Id, drug.Id
+                select new
+                {
+                    Drug = drug,
+                    ClassInfo = ci,
+                    ClassType = ct
+                };
+
+            var rawResults = await query.ToListAsync();
+
+            // Step 2: Distinct by ClassInfo.Id — in memory
+            var distinctResults = rawResults
+                .GroupBy(x => x.ClassInfo.Id)
+                .Select(g => g.First()) // take the first (best) drug per class
+                .OrderBy(x => x.ClassInfo.Id) // stable order
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
-            return items;
-        }
+                .Select(x => new DrugModal
+                {
+                    Id = x.Drug.Id,
+                    Name = x.Drug.Name,
+                    Ndc = x.Drug.NDC,
+                    Form = x.Drug.Form,
+                    Strength = x.Drug.Strength,
+                    ClassId = x.ClassInfo.Id,
+                    ClassType = x.ClassType.Name,
+                    ClassName = x.ClassInfo.Name,
+                    Acq = x.Drug.ACQ,
+                    Awp = x.Drug.AWP,
+                    Rxcui = x.Drug.Rxcui ?? 0,
+                    Route = x.Drug.Route,
+                    TeCode = x.Drug.TECode,
+                    Ingrdient = x.Drug.Ingrdient,
+                    ApplicationNumber = x.Drug.ApplicationNumber,
+                    ApplicationType = x.Drug.ApplicationType,
+                    StrengthUnit = x.Drug.StrengthUnit,
+                    Type = x.Drug.Type
+                })
+                .ToList();
 
+            return distinctResults;
+        }
 
         public async Task<ICollection<string>> GetAllNDCByDrugName(string name)
         {
@@ -2149,7 +2195,7 @@ namespace SearchTool_ServerSide.Repository
             if (!_cache.TryGetValue(cacheKey, out allData))
             {
                 // Cache miss: load the entire dataset from the database.
-                allData = await LoadAllLatestScriptsFromDatabaseAsync();
+                allData = await GetAuditDtosWithPrevMonthAndClassTypeAsync(classVersion);
 
                 // Set up cache options. Adjust the expiration as necessary.
                 var cacheOptions = new MemoryCacheEntryOptions()
@@ -2194,7 +2240,101 @@ namespace SearchTool_ServerSide.Repository
 
             return filteredData;
         }
+        public async Task<List<AuditReadDto>> GetAuditDtosWithPrevMonthAndClassTypeAsync(string classTypeName)
+        {
+            // Resolve ClassType.Id from name
+            var classType = await _context.ClassTypes
+                .FirstOrDefaultAsync(ct => ct.Name == classTypeName);
 
+            if (classType == null)
+                throw new ArgumentException($"ClassType with name '{classTypeName}' not found.");
+
+            int classTypeId = classType.Id;
+
+            var scriptItems = await _context.ScriptItems
+                .Include(si => si.Script)
+                    .ThenInclude(s => s.Branch)
+                .Include(si => si.Drug)
+                    .ThenInclude(d => d.DrugClasses)
+                        .ThenInclude(dc => dc.ClassInfo)
+                            .ThenInclude(ci => ci.ClassType)
+                .Include(si => si.Prescriber)
+                .Include(si => si.Insurance)
+                    .ThenInclude(ir => ir.InsurancePCN)
+                        .ThenInclude(pcn => pcn.Insurance)
+                .ToListAsync();
+
+            var classInsurances = await _context.ClassInsurances
+                .Include(ci => ci.Drug)
+                .Include(ci => ci.Branch)
+                .Include(ci => ci.ClassInfo)
+                    .ThenInclude(ci => ci.ClassType)
+                .Include(ci => ci.Insurance)
+                    .ThenInclude(ir => ir.InsurancePCN)
+                        .ThenInclude(pcn => pcn.Insurance)
+                .ToListAsync();
+
+            var result = scriptItems.Select(si =>
+            {
+                var scriptDate = si.Script.Date;
+
+                var prevMonthStart = new DateTime(scriptDate.Year, scriptDate.Month, 1).AddMonths(-1);
+                var prevMonthEnd = prevMonthStart.AddMonths(1).AddDays(-1);
+
+                var relevantClassIds = si.Drug.DrugClasses
+                    .Where(dc => dc.ClassInfo.ClassType.Id == classTypeId)
+                    .Select(dc => dc.ClassId)
+                    .ToList();
+
+                var bestOption = classInsurances
+                    .Where(ci =>
+                        ci.BranchId == si.Script.BranchId &&
+                        ci.DrugId != si.DrugId &&
+                        ci.InsuranceId == si.Insurance.Id &&
+                        relevantClassIds.Contains(ci.ClassInfoId) &&
+                        ci.ClassInfo.ClassType.Id == classTypeId &&
+                        ci.Date.Date >= prevMonthStart && ci.Date.Date <= prevMonthEnd
+                    )
+                    .OrderByDescending(ci => ci.BestNet)
+                    .FirstOrDefault();
+
+                return new AuditReadDto
+                {
+                    Date = si.Script.Date,
+                    RemainingStock = si.RemainingStock,
+                    HighestRemainingStock = 100,
+                    ScriptCode = si.Script.ScriptCode,
+                    RxNumber = si.RxNumber,
+                    User = si.UserEmail,
+                    Prescriber = si.Prescriber?.Name ?? "",
+                    DrugName = si.Drug.Name,
+                    DrugId = si.DrugId,
+                    Insurance = si.Insurance?.RxGroup ?? "",
+                    InsuranceId = si.InsuranceId,
+                    PF = si.PF,
+                    Quantity = si.Quantity,
+                    AcquisitionCost = si.AcquisitionCost,
+                    Discount = si.Discount,
+                    InsurancePayment = si.InsurancePayment,
+                    PatientPayment = si.PatientPayment,
+                    NetProfit = si.NetProfit,
+                    NDCCode = si.NDCCode,
+                    DrugClass = si.Drug.DrugClasses
+                                    .FirstOrDefault(dc => dc.ClassInfo.ClassType.Id == classTypeId)?.ClassInfo?.Name ?? "",
+
+                    HighestDrugNDC = bestOption?.Drug?.NDC ?? "",
+                    HighestDrugName = bestOption?.Drug?.Name ?? "",
+                    HighestDrugId = bestOption?.DrugId ?? 0,
+                    HighestNet = bestOption?.BestNet ?? 0,
+                    HighestScriptCode = bestOption?.ScriptCode ?? "",
+                    HighestScriptDate = bestOption?.ScriptDateTime ?? DateTime.MinValue,
+
+                    BranchCode = si.Script.Branch?.Code ?? ""
+                };
+            }).ToList();
+
+            return result;
+        }
         private async Task<List<AuditReadDto>> LoadAllLatestScriptsFromDatabaseAsync(string classType = "ClassV1")
         {
             var auditData = await (
@@ -2253,9 +2393,13 @@ namespace SearchTool_ServerSide.Repository
                     .OrderByDescending(ci => ci.BestNet)
                     .FirstOrDefault()
                 let bestNetEntry = bestNetEntryPrevMonth ?? bestNetEntryCurrentMonth
+                let bestScript = bestNetEntryPrevMonth != null
+                    ? _context.Scripts.FirstOrDefault(s => s.ScriptCode == bestNetEntry.ScriptCode)
+                    : null
                 select new AuditReadDto
                 {
                     RemainingStock = scriptItem.RemainingStock,
+                    HighestRemainingStock = scriptItem.RemainingStock,
                     Date = script.Date,
                     ScriptCode = script.ScriptCode,
                     RxNumber = scriptItem.RxNumber,
@@ -2263,9 +2407,9 @@ namespace SearchTool_ServerSide.Repository
                     DrugName = drug != null ? drug.Name : null,
                     NDCCode = drug != null ? drug.NDC : null,
                     DrugId = drug != null ? drug.Id : 0,
-                    HighstDrugName = bestDrug != null ? bestDrug.Name : null,
-                    HighstDrugNDC = bestDrug != null ? bestDrug.NDC : null,
-                    HighstDrugId = bestDrug != null ? bestDrug.Id : 0,
+                    HighestDrugName = bestDrug != null ? bestDrug.Name : null,
+                    HighestDrugNDC = bestDrug != null ? bestDrug.NDC : null,
+                    HighestDrugId = bestDrug != null ? bestDrug.Id : 0,
                     BranchCode = branch != null ? branch.Name : null,
                     Insurance = insurance != null ? insurance.RxGroup : null,
                     InsuranceId = insurance != null ? insurance.Id : 0,
@@ -2278,9 +2422,9 @@ namespace SearchTool_ServerSide.Repository
                     PatientPayment = scriptItem.PatientPayment,
                     NetProfit = scriptItem.NetProfit,
                     DrugClass = classItem != null ? classItem.Name : null,
-                    HighstNet = bestNetEntry != null ? bestNetEntry.BestNet : 0,
-                    HighstScriptCode = bestNetEntry != null ? bestNetEntry.ScriptCode : null,
-                    HighstScriptDate = bestNetEntry != null ? bestNetEntry.ScriptDateTime : DateTime.MinValue
+                    HighestNet = bestNetEntry != null ? bestNetEntry.BestNet : 0,
+                    HighestScriptCode = bestNetEntry != null ? bestNetEntry.ScriptCode : null,
+                    HighestScriptDate = bestNetEntry != null ? bestNetEntry.ScriptDateTime : DateTime.MinValue
                 }
             ).ToListAsync();
 
@@ -2623,8 +2767,6 @@ namespace SearchTool_ServerSide.Repository
             string classType = "ClassV1"
         )
         {
-
-
             var query =
                 from di in _context.DrugInsurances
                 join drug in _context.Drugs on di.DrugId equals drug.Id
@@ -2632,54 +2774,57 @@ namespace SearchTool_ServerSide.Repository
                 join ci in _context.ClassInfos on dc.ClassId equals ci.Id
                 join ct in _context.ClassTypes on ci.ClassTypeId equals ct.Id
                 join ins in _context.InsuranceRxes on di.InsuranceId equals ins.Id
-                where ins.RxGroup.ToLower() == insurance.ToLower()
-                   && ci.Name.ToLower().Contains(drugClassName.ToLower())
-                   && ct.Name.ToLower() == classType.ToLower()
+                where EF.Functions.ILike(ins.RxGroup, insurance)
+                   && EF.Functions.ILike(ci.Name, $"%{drugClassName}%")
+                   && EF.Functions.ILike(ct.Name, classType)
                 orderby di.Net descending, di.InsurancePayment descending
                 select new
                 {
                     Drug = drug,
                     DrugInsurance = di,
-                    ClassInfo = ci
+                    ClassInfo = ci,
+                    ClassType = ct
                 };
 
-            var classInfos = await query
-                .ToListAsync();
+            // Run SQL and materialize in memory
+            var rawResults = await query.ToListAsync();
 
-            // Ensure unique ClassId
-            var uniqueByClassId = classInfos
+            // Group by ClassId and select the highest Net per class
+            var groupedResults = rawResults
                 .GroupBy(x => x.ClassInfo.Id)
-                .Select(g => g.First()) // take the highest ranked in each group
+                .Select(g => g.First())
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
 
-            var drugModels = uniqueByClassId.Select(x => new DrugModal
-            {
-                Id = x.Drug.Id,
-                Name = x.Drug.Name,
-                Ndc = x.Drug.NDC,
-                Form = x.Drug.Form,
-                Strength = x.Drug.Strength,
-                ClassId = x.ClassInfo.Id,
-                ClassType = x.ClassInfo.ClassType.ToString(),
-                ClassName = x.ClassInfo.Name,
-                Acq = x.Drug.ACQ,
-                Awp = x.Drug.AWP,
-                Rxcui = x.Drug.Rxcui ?? 0,
-                Route = x.Drug.Route,
-                TeCode = x.Drug.TECode,
-                Ingrdient = x.Drug.Ingrdient,
-                ApplicationNumber = x.Drug.ApplicationNumber,
-                ApplicationType = x.Drug.ApplicationType,
-                StrengthUnit = x.Drug.StrengthUnit,
-                Type = x.Drug.Type
-            }).ToList();
+            var result = groupedResults
+                .Select(x => new DrugModal
+                {
+                    Id = x.Drug.Id,
+                    Name = x.Drug.Name,
+                    Ndc = x.Drug.NDC,
+                    Form = x.Drug.Form,
+                    Strength = x.Drug.Strength,
+                    ClassId = x.ClassInfo.Id,
+                    ClassType = x.ClassType.Name,
+                    ClassName = x.ClassInfo.Name,
+                    Acq = x.Drug.ACQ,
+                    Awp = x.Drug.AWP,
+                    Rxcui = x.Drug.Rxcui ?? 0,
+                    Route = x.Drug.Route,
+                    TeCode = x.Drug.TECode,
+                    Ingrdient = x.Drug.Ingrdient,
+                    ApplicationNumber = x.Drug.ApplicationNumber,
+                    ApplicationType = x.Drug.ApplicationType,
+                    StrengthUnit = x.Drug.StrengthUnit,
+                    Type = x.Drug.Type
+                })
+                .ToList();
 
-            return drugModels;
+            return result;
         }
 
-        internal async Task<ICollection<ClassInfo>> GetDrugClassesByPCNPaginated(
+        internal async Task<ICollection<DrugModal>> GetDrugClassesByPCNPaginated(
             string insurance,
             string drugClassName,
             int pageSize,
@@ -2689,6 +2834,7 @@ namespace SearchTool_ServerSide.Repository
             pageNumber = pageNumber > 0 ? pageNumber : 1;
             pageSize = pageSize > 0 ? pageSize : 10;
 
+            // Step 1: Query all matching rows ordered by Net + InsurancePayment
             var query =
                 from di in _context.DrugInsurances
                 join drug in _context.Drugs on di.DrugId equals drug.Id
@@ -2697,22 +2843,54 @@ namespace SearchTool_ServerSide.Repository
                 join ins in _context.InsuranceRxes on di.InsuranceId equals ins.Id
                 join pcn in _context.InsurancePCNs on ins.InsurancePCNId equals pcn.Id
                 join ct in _context.ClassTypes on ci.ClassTypeId equals ct.Id
-                where pcn.PCN.ToLower() == insurance.ToLower()
-                   && ci.Name.ToLower().Contains(drugClassName.ToLower())
-                   && ct.Name.ToLower() == classType.ToLower()
+                where EF.Functions.ILike(pcn.PCN, insurance)
+                   && EF.Functions.ILike(ci.Name, $"%{drugClassName}%")
+                   && EF.Functions.ILike(ct.Name, classType)
                 orderby di.Net descending, di.InsurancePayment descending
-                select new { ci.Id, ci };
+                select new
+                {
+                    Drug = drug,
+                    DrugInsurance = di,
+                    ClassInfo = ci,
+                    ClassType = ct
+                };
 
-            var pagedResults = await query
-                .GroupBy(x => x.Id)
-                .Select(g => g.FirstOrDefault().ci) // Take one ci per Id
+            var rawResults = await query.ToListAsync();
+
+            // Step 2: Distinct by ClassInfo.Id — in memory
+            var distinctResults = rawResults
+                .GroupBy(x => x.ClassInfo.Id)
+                .Select(g => g.First()) // take best (highest Net) drug for each class
+                .OrderBy(x => x.ClassInfo.Id) // stable ordering
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .Select(x => new DrugModal
+                {
+                    Id = x.Drug.Id,
+                    Name = x.Drug.Name,
+                    Ndc = x.Drug.NDC,
+                    Form = x.Drug.Form,
+                    Strength = x.Drug.Strength,
+                    ClassId = x.ClassInfo.Id,
+                    ClassType = x.ClassType.Name,
+                    ClassName = x.ClassInfo.Name,
+                    Acq = x.Drug.ACQ,
+                    Awp = x.Drug.AWP,
+                    Rxcui = x.Drug.Rxcui ?? 0,
+                    Route = x.Drug.Route,
+                    TeCode = x.Drug.TECode,
+                    Ingrdient = x.Drug.Ingrdient,
+                    ApplicationNumber = x.Drug.ApplicationNumber,
+                    ApplicationType = x.Drug.ApplicationType,
+                    StrengthUnit = x.Drug.StrengthUnit,
+                    Type = x.Drug.Type
+                })
+                .ToList();
 
-            return pagedResults;
+            return distinctResults;
         }
-        internal async Task<ICollection<ClassInfo>> GetDrugClassesByBINPaginated(
+
+        internal async Task<ICollection<DrugModal>> GetDrugClassesByBINPaginated(
             string insurance,
             string drugClassName,
             int pageSize,
@@ -2722,6 +2900,7 @@ namespace SearchTool_ServerSide.Repository
             pageNumber = pageNumber > 0 ? pageNumber : 1;
             pageSize = pageSize > 0 ? pageSize : 10;
 
+            // Step 1: query all matching rows, ordered
             var query =
                 from di in _context.DrugInsurances
                 join drug in _context.Drugs on di.DrugId equals drug.Id
@@ -2731,21 +2910,53 @@ namespace SearchTool_ServerSide.Repository
                 join ins in _context.InsuranceRxes on di.InsuranceId equals ins.Id
                 join pcn in _context.InsurancePCNs on ins.InsurancePCNId equals pcn.Id
                 join insMain in _context.Insurances on pcn.InsuranceId equals insMain.Id
-                where insMain.Bin.ToLower() == insurance.ToLower()
-                   && ci.Name.ToLower().Contains(drugClassName.ToLower())
-                   && ct.Name.ToLower() == classType.ToLower()
+                where EF.Functions.ILike(insMain.Bin, insurance)
+                   && EF.Functions.ILike(ci.Name, $"%{drugClassName}%")
+                   && EF.Functions.ILike(ct.Name, classType)
                 orderby di.Net descending, di.InsurancePayment descending
-                select new { ci.Id, ci };
+                select new
+                {
+                    Drug = drug,
+                    DrugInsurance = di,
+                    ClassInfo = ci,
+                    ClassType = ct
+                };
 
-            var pagedResults = await query
-                .GroupBy(x => x.Id)
-                .Select(g => g.FirstOrDefault().ci)
+            var rawResults = await query.ToListAsync();
+
+            // Step 2: distinct by ClassInfo.Id — in memory
+            var distinctResults = rawResults
+                .GroupBy(x => x.ClassInfo.Id)
+                .Select(g => g.First()) // pick best drug for each class
+                .OrderBy(x => x.ClassInfo.Id) // stable order
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync();
+                .Select(x => new DrugModal
+                {
+                    Id = x.Drug.Id,
+                    Name = x.Drug.Name,
+                    Ndc = x.Drug.NDC,
+                    Form = x.Drug.Form,
+                    Strength = x.Drug.Strength,
+                    ClassId = x.ClassInfo.Id,
+                    ClassType = x.ClassType.Name,
+                    ClassName = x.ClassInfo.Name,
+                    Acq = x.Drug.ACQ,
+                    Awp = x.Drug.AWP,
+                    Rxcui = x.Drug.Rxcui ?? 0,
+                    Route = x.Drug.Route,
+                    TeCode = x.Drug.TECode,
+                    Ingrdient = x.Drug.Ingrdient,
+                    ApplicationNumber = x.Drug.ApplicationNumber,
+                    ApplicationType = x.Drug.ApplicationType,
+                    StrengthUnit = x.Drug.StrengthUnit,
+                    Type = x.Drug.Type
+                })
+                .ToList();
 
-            return pagedResults;
+            return distinctResults;
         }
+
 
         internal async Task<IEnumerable<Drug>> GetDrugsByClassId(int classId, string classType, int pageSize, int pageNumber)
         {

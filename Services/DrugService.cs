@@ -27,9 +27,9 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        public async Task<ICollection<ClassInfo>> GetClassesByName(string name, int pageNumber, int pageSize)
+        public async Task<ICollection<DrugModal>> GetClassesByName(string name,string classVersion, int pageNumber, int pageSize)
         {
-            var items = await _drugRepository.GetClassesByName(name, pageNumber, pageSize);
+            var items = await _drugRepository.GetClassesByName(name, classVersion, pageNumber, pageSize);
             return items;
         }
 
@@ -272,13 +272,13 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<ClassInfo>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
+        internal async Task<ICollection<DrugModal>> GetDrugClassesByPCNPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
         {
             var items = await _drugRepository.GetDrugClassesByPCNPaginated(insurance, drugClassName, pageSize, pageNumber, ClassVersion);
             return items;
         }
 
-        internal async Task<ICollection<ClassInfo>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
+        internal async Task<ICollection<DrugModal>> GetDrugClassesByBINPagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
         {
             var items = await _drugRepository.GetDrugClassesByBINPaginated(insurance, drugClassName, pageSize, pageNumber, ClassVersion);
             return items;

@@ -6,16 +6,16 @@ using SearchTool_ServerSide.Services;
 namespace SearchTool_ServerSide.Controllers
 {
     [ApiController]
-    [Route("Insurance")]
-    public class InsuranceContorller(InsuranceService _insuranceService) : ControllerBase
+    [Route("Insurance"),Authorize(Policy = "Pharmacist")]
+    public class InsuranceController(InsuranceService _insuranceService) : ControllerBase
     {
-        [HttpGet("GetInsuranceDetails"), Authorize(Policy = "Admin")]
+        [HttpGet("GetInsuranceDetails")]
         public async Task<IActionResult> GetInsuranceDetails([FromQuery] int id)
         {
             var item = await _insuranceService.GetInsuranceDetails(id);
             return Ok(item);
         }
-        [HttpGet("GetAllRxGroups"), Authorize(Policy = "Admin")]
+        [HttpGet("GetAllRxGroups")]
         public async Task<IActionResult> GetAllRxGroups()
         {
             var items = await _insuranceService.GetAllRxGroups();

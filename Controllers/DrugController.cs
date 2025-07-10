@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 using SearchTool_ServerSide.Authentication;
 using SearchTool_ServerSide.Dtos.ScritpsDto;
+using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Services;
 using ServerSide.Models;
 
@@ -50,10 +51,10 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetClassesByName"), AllowAnonymous]
-        public async Task<IActionResult> GetClassesByName([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
+        public async Task<IActionResult> GetClassesByName([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string classVersion)
         {
             // Console.WriteLine("Name: " + name+" PageNumber: " + pageNumber + " PageSize: " + pageSize);
-            var items = await _drugService.GetClassesByName(name, pageNumber, pageSize);
+            var items = await _drugService.GetClassesByName(name, classVersion, pageNumber, pageSize);
             return Ok(items);
         }
 
@@ -298,15 +299,15 @@ namespace SearchTool_ServerSide.Controllers
         }
 
         [HttpGet("GetDrugClassesByInsuranceNamePagintated"), AllowAnonymous]
-        public async Task<IActionResult> GetDrugClassesByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetDrugClassesByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
-            var items = await _drugService.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
             return Ok(items);
         }
         [HttpGet("GetDrugClassesByPCNPagintated"), AllowAnonymous]
-        public async Task<IActionResult> GetDrugClassesByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetDrugClassesByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
-            var items = await _drugService.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
             return Ok(items);
         }
         [HttpGet("GetDrugClassesByBINPagintated"), AllowAnonymous]
