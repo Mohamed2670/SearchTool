@@ -10,7 +10,7 @@ using SearchTool_ServerSide.Services;
 namespace SearchTool_ServerSide.Controllers
 {
     [ApiController]
-    [Route("order")]
+    [Route("order"),Authorize(Policy ="Pharmacist")]
 
     public class OrderController(UserAccessToken userAccessToken, OrderService _orderService) : ControllerBase
     {
@@ -43,7 +43,7 @@ namespace SearchTool_ServerSide.Controllers
 
             return Ok("Order created successfully.");
         }
-        [HttpGet("GetAllOrdersByUserId"),AllowAnonymous]
+        [HttpGet("GetAllOrdersByUserId")]
         public async Task<IActionResult> GetAllOrdersByUserId()
         {
             var userData = userAccessToken.tokenData();
@@ -62,6 +62,17 @@ namespace SearchTool_ServerSide.Controllers
                 return NotFound("No orders found for the specified user.");
             }
             return Ok(orders);
+        }
+        [HttpPost("ViewDrugDetailsLog")]
+        public async Task<IActionResult> ViewDrugDetailsLog([FromBody] string SearchLog)
+        {
+            var user = userAccessToken.tokenData();
+            if (user == null || string.IsNullOrEmpty(user.UserId))
+            {
+                return Unauthorized("Invalid or missing token data");
+            }
+            await _orderService.ViewDrugDetailsLog(SearchLog,user);
+            return Ok("Drug details log viewed successfully.");
         }
     }
 

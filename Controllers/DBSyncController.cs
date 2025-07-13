@@ -47,7 +47,7 @@ namespace SearchTool_ServerSide.Controllers
             }
         }
         [HttpPost("SyncLogsCsv"), AllowAnonymous]
-        public async Task<IActionResult> SyncLogsCsv(string filePath = "logs (5).csv")
+        public async Task<IActionResult> SyncLogsCsv(string filePath)
         {
             try
             {
@@ -85,11 +85,6 @@ namespace SearchTool_ServerSide.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-        [HttpGet("ImportLogsFromCsvWithoutId"), AllowAnonymous]
-        public async Task<IActionResult> ImportLogsFromCsvWithoutIdAsync()
-        {
-            await _dataSyncService.ImportLogsFromCsvWithoutIdAsync();
-            return Ok("Logs imported successfully from CSV without ID.");
-        }
+
     }
 }

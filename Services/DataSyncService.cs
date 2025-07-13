@@ -305,7 +305,7 @@ public class DataSyncService
         public DateTime Date { get; set; }
     }
 
-    public async Task ImportLogsFromCsvWithoutIdAsync(string filePath = "logs (1).csv")
+    public async Task ImportLogsFromCsvWithoutIdAsync(string filePath)
     {
         var config = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
@@ -317,7 +317,7 @@ public class DataSyncService
         using var reader = new StreamReader(filePath, Encoding.UTF8);
         using var csv = new CsvReader(reader, config);
         var localUsers = await _localDb.Users
-                  .Select(u => new { u.Email, u.Id })
+                  .Select(u => new { u.Email })
                   .ToListAsync();
         var logs = new List<SimpleLogImportDto>();
 
@@ -331,10 +331,10 @@ public class DataSyncService
         }
 
         // Remove duplicates from CSV by UserId, Action, Date (all in UTC)
-        var uniqueLogs = logs
-            .GroupBy(l => new { l.Email, l.Action, l.Date })
-            .Select(g => g.First())
-            .ToList();
+        // var uniqueLogs = logs
+        //     .GroupBy(l => new { l.Email, l.Action, l.Date })
+        //     .Select(g => g.First())
+        //     .ToList();
 
         // Also normalize existing DB dates to UTC for comparison
         var existing = await _localDb.Logs
@@ -347,7 +347,7 @@ public class DataSyncService
                     : DateTime.SpecifyKind(e.Date, DateTimeKind.Utc)))
         );
 
-        var newLogEntities = uniqueLogs
+        var newLogEntities = logs
         .Select(l =>
         {
             var user = localUsers.FirstOrDefault(u => u.Email == l.Email);

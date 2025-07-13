@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using SearchTool_ServerSide.Data;
+using SearchTool_ServerSide.Dtos.TokenDto;
 using SearchTool_ServerSide.Models;
 
 namespace SearchTool_ServerSide.Repository
@@ -21,6 +22,18 @@ namespace SearchTool_ServerSide.Repository
                 .FirstOrDefaultAsync(s => s.OrderItemId == id);
 
             return searchLog;
+        }
+
+        internal async Task ViewDrugDetailsLog(string searchLog,TokenReadDto user)
+        {
+            var log = new Log
+            {
+                UserEmail = user.Email,
+                Action = "ViewDrugDetails done with search log: " + searchLog,
+                Date = DateTime.UtcNow,
+            };
+            await _context.Logs.AddAsync(log);
+            await _context.SaveChangesAsync();
         }
     }
 }

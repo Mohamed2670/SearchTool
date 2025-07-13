@@ -10,6 +10,7 @@ namespace SearchTool_ServerSide.Models
         public string? Form { get; set; }
         public string? Strength { get; set; }
         public ICollection<DrugClass> DrugClasses { get; set; } = new List<DrugClass>();
+        public ICollection<SearchDrugDetailsLogs> SearchDrugDetailsLogs { get; set; } = new List<SearchDrugDetailsLogs>();
         public decimal ACQ { get; set; }
         public decimal AWP { get; set; }
         public decimal? Rxcui { get; set; }

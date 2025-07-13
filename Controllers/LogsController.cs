@@ -29,6 +29,7 @@ namespace SearchTool_ServerSide.Controllers
             await _logsService.InsertAllLogsToDB(allLogsAddDtos);
             return Ok("All Logs Saved in DB :)");
         }
+        
 
     }
 }

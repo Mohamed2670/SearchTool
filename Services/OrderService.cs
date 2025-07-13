@@ -3,6 +3,7 @@ using AutoMapper;
 using SearchTool_ServerSide.Dtos.OrderDtos;
 using SearchTool_ServerSide.Dtos.OrderItemDtos;
 using SearchTool_ServerSide.Dtos.SearchLogDtos;
+using SearchTool_ServerSide.Dtos.TokenDto;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
 
@@ -128,7 +129,11 @@ namespace SearchTool_ServerSide.Services
             return orderHistoryReadDtos;
         }
 
-
+        internal async Task ViewDrugDetailsLog(string searchLog, TokenReadDto user)
+        {
+            await _searchLogRepository.ViewDrugDetailsLog(searchLog,user);
+            
+        }
     }
 
 

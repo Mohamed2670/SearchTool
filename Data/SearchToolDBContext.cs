@@ -136,10 +136,24 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugEPCMOA> DrugEPCMOAs { get; set; }
         public DbSet<EPCMOAClass> EPCMOAClasses { get; set; }
         public DbSet<ClassType> ClassTypes { get; set; }
+        public DbSet<SearchDrugDetailsLogs> DrugModals { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
+            modelBuilder.Entity<SearchDrugDetailsLogs>(entity =>
+            {
+                entity.HasKey(e => new { e.UserEmail, e.NDC });
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.SearchDrugDetailsLogs)
+                    .HasForeignKey(e => e.UserEmail)
+                    .HasPrincipalKey(u => u.Email)
+                    .OnDelete(DeleteBehavior.Cascade); // Or Restrict   
+                entity.HasOne(e => e.Drug)
+                    .WithMany(d => d.SearchDrugDetailsLogs)
+                    .HasForeignKey(e => e.NDC)
+                    .HasPrincipalKey(d => d.NDC)
+                    .OnDelete(DeleteBehavior.Cascade); // Or Restrict
+            });
             // Define Composite Keys
             modelBuilder.Entity<DrugClass>(entity =>
             {
