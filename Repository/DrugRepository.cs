@@ -37,17 +37,28 @@ namespace SearchTool_ServerSide.Repository
             _mapper = mapper;
             _cache = cache;
         }
-        public async Task<ICollection<Drug>> GetDrugsByName(string name, int pageNumber, int pageSize = 20)
+        public async Task<ICollection<Drug>> GetDrugsByName(string query, int page = 1, int pageSize = 20)
         {
-            var items = await _context.Drugs
-                .Where(x => x.Name.ToLower().Contains(name.ToLower()))
-                .GroupBy(x => x.Name.ToLower())
-                .Select(g => g.First())
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            int offset = (page - 1) * pageSize;
+
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+
+            var sql = @"
+        SELECT DISTINCT ON (""Name"") *
+        FROM ""Drugs""
+        WHERE ""Name"" % {0}
+        ORDER BY ""Name"", similarity(""Name"", {0}) DESC
+        LIMIT {1} OFFSET {2};
+    ";
+
+            var results = await _context.Drugs
+                .FromSqlRaw(sql, query, pageSize, offset)
                 .ToListAsync();
-            return items;
+
+            return results;
         }
+
+
         public async Task<ICollection<DrugModal>> GetClassesByName(
             string name,
             string classVersion,
