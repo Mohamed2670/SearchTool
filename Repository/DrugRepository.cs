@@ -44,10 +44,20 @@ namespace SearchTool_ServerSide.Repository
             await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
 
             var sql = @"
-        SELECT DISTINCT ON (""Name"") *
-        FROM ""Drugs""
-        WHERE ""Name"" % {0}
-        ORDER BY ""Name"", similarity(""Name"", {0}) DESC
+        WITH ranked AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY ""Name""
+                       ORDER BY similarity(""Name"", {0}) DESC
+                   ) AS rn,
+                   similarity(""Name"", {0}) AS sim
+            FROM ""Drugs""
+            WHERE ""Name"" % {0}
+        )
+        SELECT *
+        FROM ranked
+        WHERE rn = 1
+        ORDER BY sim DESC
         LIMIT {1} OFFSET {2};
     ";
 
@@ -57,6 +67,7 @@ namespace SearchTool_ServerSide.Repository
 
             return results;
         }
+
 
 
         public async Task<ICollection<DrugModal>> GetClassesByName(
