@@ -24,7 +24,7 @@ namespace SearchTool_ServerSide.Controllers
             await _drugService.Procces2();
             return Ok();
         }
-        [HttpGet("/GetAllDrugs"), AllowAnonymous]
+        [HttpGet("/GetAllDrugs")]
         public async Task<IActionResult> GetAllDrugs()
         {
             var items = await _drugService.GetAll();
@@ -37,7 +37,7 @@ namespace SearchTool_ServerSide.Controllers
             var item = await _drugService.SearchByNdc(ndc);
             return Ok(item);
         }
-        [HttpGet("GetEPCMOAClassesByDrugId"), AllowAnonymous]
+        [HttpGet("GetEPCMOAClassesByDrugId")]
         public async Task<IActionResult> GetEPCMOAClassesByDrugId([FromQuery] int drugId)
         {
             var items = await _drugService.GetEPCMOAClassesByDrugId(drugId);
@@ -50,7 +50,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.SearchName(name, pageNumber, pageSize);
             return Ok(items);
         }
-        [HttpGet("GetClassesByName"), AllowAnonymous]
+        [HttpGet("GetClassesByName")]
         public async Task<IActionResult> GetClassesByName([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string classVersion)
         {
             // Console.WriteLine("Name: " + name+" PageNumber: " + pageNumber + " PageSize: " + pageSize);
@@ -131,19 +131,19 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllDrugsEPCMOA"), AllowAnonymous]
+        [HttpGet("GetAllDrugsEPCMOA")]
         public async Task<IActionResult> GetAllDrugsEPCMOA([FromQuery] int drugId, [FromQuery] int pageSize = 1000, [FromQuery] int pageNumber = 1)
         {
             var items = await _drugService.GetAllDrugsEPCMOA(drugId, pageSize, pageNumber);
             return Ok(items);
         }
-        [HttpGet("GetAllDrugs"), AllowAnonymous]
+        [HttpGet("GetAllDrugs")]
         public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {
             var items = await _drugService.GetAllDrugs(classId);
             return Ok(items);
         }
-        [HttpGet("GetDrugById"), AllowAnonymous]
+        [HttpGet("GetDrugById")]
         public async Task<IActionResult> GetDrugById([FromQuery] int id)
         {
             var item = await _drugService.GetDrugById(id);
@@ -155,7 +155,7 @@ namespace SearchTool_ServerSide.Controllers
         //     await _drugService.oneway();
         //     return Ok(true);
         // }
-        [HttpGet("GetInsuranceByNdc"), AllowAnonymous]
+        [HttpGet("GetInsuranceByNdc")]
         public async Task<IActionResult> GetInsuranceByNdc([FromQuery] string ndc)
         {
             var items = await _drugService.GetInsuranceByNdc(ndc);
@@ -176,7 +176,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetScriptByScriptCode(scriptCode);
             return Ok(items);
         }
-        [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
+        [HttpGet("ImportInsurancesFromCsvAsync"),AllowAnonymous]
         public async Task<IActionResult> ImportInsurancesFromCsvAsync()
         {
             await _drugService.ImportInsurancesFromCsvAsync();
@@ -189,31 +189,31 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetDrugsByInsurance(insuranceId, drug);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByInsuranceName"), AllowAnonymous]
+        [HttpGet("GetDrugsByInsuranceName")]
         public async Task<IActionResult> GetDrugsByInsurance([FromQuery] string insurance)
         {
             var items = await _drugService.GetDrugsByInsurance(insurance);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByInsuranceNamePagintated"), AllowAnonymous]
+        [HttpGet("GetDrugsByInsuranceNamePagintated")]
         public async Task<IActionResult> GetDrugsByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
             var items = await _drugService.GetDrugsByInsuranceNamePagintated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByPCNPagintated"), AllowAnonymous]
+        [HttpGet("GetDrugsByPCNPagintated")]
         public async Task<IActionResult> GetDrugsByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
             var items = await _drugService.GetDrugsByPCNPagintated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByBINPagintated"), AllowAnonymous]
+        [HttpGet("GetDrugsByBINPagintated")]
         public async Task<IActionResult> GetDrugsByBINPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
             var items = await _drugService.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByInsuranceNameDrugName"), AllowAnonymous]
+        [HttpGet("GetDrugsByInsuranceNameDrugName")]
         public async Task<IActionResult> GetDrugsByInsuranceNameDrugName(
             [FromQuery] string insurance,
             [FromQuery] string drugName,
@@ -223,13 +223,13 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetDrugsByInsuranceNameDrugName(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByPCN"), AllowAnonymous]
+        [HttpGet("GetDrugsByPCN")]
         public async Task<IActionResult> GetDrugsByPCN([FromQuery] string pcn)
         {
             var items = await _drugService.GetDrugsByPCN(pcn);
             return Ok(items);
         }
-        [HttpGet("GetDrugsByBIN"), AllowAnonymous]
+        [HttpGet("GetDrugsByBIN")]
         public async Task<IActionResult> GetDrugsByBIN([FromQuery] string bin)
         {
             var items = await _drugService.GetDrugsByBIN(bin);
@@ -285,7 +285,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok("Items Added Succesfuly");
         }
 
-        [HttpGet("AddMediCare"), AllowAnonymous]
+        [HttpGet("AddMediCare"),AllowAnonymous]
         public async Task<IActionResult> AddMediCare()
         {
             await _drugService.AddMediCare();
@@ -298,19 +298,19 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetDrugClassesByInsuranceNamePagintated"), AllowAnonymous]
+        [HttpGet("GetDrugClassesByInsuranceNamePagintated")]
         public async Task<IActionResult> GetDrugClassesByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
             var items = await _drugService.GetDrugClassesByInsuranceNamePagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
             return Ok(items);
         }
-        [HttpGet("GetDrugClassesByPCNPagintated"), AllowAnonymous]
+        [HttpGet("GetDrugClassesByPCNPagintated")]
         public async Task<IActionResult> GetDrugClassesByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
             var items = await _drugService.GetDrugClassesByPCNPagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
             return Ok(items);
         }
-        [HttpGet("GetDrugClassesByBINPagintated"), AllowAnonymous]
+        [HttpGet("GetDrugClassesByBINPagintated")]
         public async Task<IActionResult> GetDrugClassesByBINPagintated([FromQuery] string insurance, [FromQuery] string drugClassName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string classVersion = "ClassV1")
         {
             var items = await _drugService.GetDrugClassesByBINPagintated(insurance, drugClassName, pageSize, pageNumber, classVersion);
@@ -322,29 +322,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetDrugsByClassId(classId, classType, pageSize, pageNumber);
             return Ok(items);
         }
-        // [HttpGet("GetAllDrugsWithClassNames"), AllowAnonymous]
-        // public async Task<IActionResult> GetAllDrugsWithClassNames()
-        // {
-        //     var DrugDB = await _drugService.GetAllDrugsWithClassNames();
-        //     // Serialize DrugDB to CSV
-        //     var csv = new System.Text.StringBuilder();
-        //     // Add header
-        //     if (DrugDB.Any())
-        //     {
-        //         var properties = typeof(SearchTool_ServerSide.Dtos.DrugDtos.FullDrugReadDto).GetProperties();
-        //         csv.AppendLine(string.Join(",", properties.Select(p => p.Name)));
-        //         foreach (var item in DrugDB)
-        //         {
-        //             csv.AppendLine(string.Join(",", properties.Select(p =>
-        //             {
-        //                 var value = p.GetValue(item, null);
-        //                 return value != null ? value.ToString().Replace(",", " ") : "";
-        //             })));
-        //         }
-        //     }
-        //     var bytes = System.Text.Encoding.UTF8.GetBytes(csv.ToString());
-        //     return File(bytes, "text/csv", "DrugDB.csv");
-        // }
+        
 
     }
 }

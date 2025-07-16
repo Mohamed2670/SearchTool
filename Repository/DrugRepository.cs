@@ -2784,53 +2784,148 @@ namespace SearchTool_ServerSide.Repository
         }
 
 
-        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(
+            string insurance, string drugName, int pageSize, int pageNumber)
         {
-            var drugs = await _context.DrugInsurances
-                .Include(di => di.Drug)
-                .Include(di => di.Insurance)
-                .Where(di => di.Insurance != null && di.Insurance.RxGroup.ToLower() == insurance.ToLower() &&
-                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
-                .Select(di => di.Drug)
-                .Distinct()
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            int offset = (pageNumber - 1) * pageSize;
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+
+            string sql;
+
+            if (drugName.Length <= 3)
+            {
+                // Short query → use ILIKE
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsurancePCNs"" pcn ON pcn.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsuranceRxes"" rx ON rx.""InsurancePCNId"" = pcn.""Id""
+            WHERE LOWER(rx.""RxGroup"") = LOWER({0})
+              AND LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%'
+            ORDER BY d.""Id""
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+            else
+            {
+                // Normal/long query → use fuzzy search
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsurancePCNs"" pcn ON pcn.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsuranceRxes"" rx ON rx.""InsurancePCNId"" = pcn.""Id""
+            WHERE LOWER(rx.""RxGroup"") = LOWER({0})
+              AND d.""Name"" % {1}
+            ORDER BY d.""Id"", similarity(d.""Name"", {1}) DESC
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+
+            var drugs = await _context.Drugs
+                .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
                 .ToListAsync();
 
             return drugs;
         }
-        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+
+
+
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(
+            string insurance, string drugName, int pageSize, int pageNumber)
         {
-            var drugs = await _context.DrugInsurances
-                .Include(di => di.Drug)
-                .Include(di => di.Insurance.InsurancePCN)
-                .Where(di => di.Insurance != null && di.Insurance.InsurancePCN.PCN.ToLower() == insurance.ToLower() &&
-                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
-                .Select(di => di.Drug)
-                .Distinct()
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            int offset = (pageNumber - 1) * pageSize;
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+
+            string sql;
+
+            if (drugName.Length <= 3)
+            {
+                // Short query → use ILIKE
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsurancePCNs"" p ON p.""InsuranceId"" = i.""Id""
+            WHERE LOWER(p.""PCN"") = LOWER({0})
+              AND LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%'
+            ORDER BY d.""Id""
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+            else
+            {
+                // Longer query → use fuzzy + similarity
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            INNER JOIN ""InsurancePCNs"" p ON p.""InsuranceId"" = i.""Id""
+            WHERE LOWER(p.""PCN"") = LOWER({0})
+              AND d.""Name"" % {1}
+            ORDER BY d.""Id"", similarity(d.""Name"", {1}) DESC
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+
+            var drugs = await _context.Drugs
+                .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
                 .ToListAsync();
 
             return drugs;
         }
-        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+
+
+        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(
+            string insurance, string drugName, int pageSize, int pageNumber)
         {
-            var drugs = await _context.DrugInsurances
-                .Include(di => di.Drug)
-                .Include(di => di.Insurance.InsurancePCN.Insurance)
-                .Where(di => di.Insurance != null &&
-                             di.Insurance.InsurancePCN.Insurance.Bin.ToLower() == insurance.ToLower() &&
-                             di.Drug.Name.ToLower().Contains(drugName.ToLower()))
-                .OrderByDescending(di => di.Net)
-                .ThenByDescending(di => di.InsurancePayment)
-                .Select(di => di.Drug)
-                .Distinct()
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            int offset = (pageNumber - 1) * pageSize;
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+
+            string sql;
+
+            if (drugName.Length <= 3)
+            {
+                // Short query → ILIKE
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            WHERE LOWER(i.""Bin"") = LOWER({0})
+              AND LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%'
+            ORDER BY d.""Id"", di.""Net"" DESC, di.""InsurancePayment"" DESC
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+            else
+            {
+                // Longer query → Fuzzy
+                sql = @"
+            SELECT DISTINCT ON (d.""Id"") d.*
+            FROM ""DrugInsurances"" di
+            INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
+            INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+            WHERE LOWER(i.""Bin"") = LOWER({0})
+              AND d.""Name"" % {1}
+            ORDER BY d.""Id"", similarity(d.""Name"", {1}) DESC, di.""Net"" DESC, di.""InsurancePayment"" DESC
+            LIMIT {2} OFFSET {3};
+        ";
+            }
+
+            var drugs = await _context.Drugs
+                .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
                 .ToListAsync();
+
             return drugs;
         }
+
+
         internal async Task<ICollection<DrugModal>> GetDrugClassesByInsuranceNamePaginated(
             string insurance,
             string drugClassName,
