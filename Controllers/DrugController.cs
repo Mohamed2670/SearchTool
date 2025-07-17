@@ -198,19 +198,19 @@ namespace SearchTool_ServerSide.Controllers
         [HttpGet("GetDrugsByInsuranceNamePagintated")]
         public async Task<IActionResult> GetDrugsByInsuranceNamePagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
-            var items = await _drugService.GetDrugsByInsuranceNamePagintated(insurance, drugName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugsByInsuranceNamePaginated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
         [HttpGet("GetDrugsByPCNPagintated")]
         public async Task<IActionResult> GetDrugsByPCNPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
-            var items = await _drugService.GetDrugsByPCNPagintated(insurance, drugName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugsByPCNPaginated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
         [HttpGet("GetDrugsByBINPagintated")]
         public async Task<IActionResult> GetDrugsByBINPagintated([FromQuery] string insurance, [FromQuery] string drugName, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
-            var items = await _drugService.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
+            var items = await _drugService.GetDrugsByBINPaginated(insurance, drugName, pageSize, pageNumber);
             return Ok(items);
         }
         [HttpGet("GetDrugsByInsuranceNameDrugName")]

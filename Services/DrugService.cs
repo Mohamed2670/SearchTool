@@ -234,7 +234,7 @@ namespace SearchTool_ServerSide.Services
         }
         public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
         {
-            await _drugRepository.AddScripts(scriptAddDtos);
+            // await _drugRepository.AddScripts(scriptAddDtos);
         }
 
         // internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
@@ -253,17 +253,17 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePaginated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByInsuranceNamePagintated(insurance, drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByInsuranceNamePaginated(insurance, drugName, pageSize, pageNumber);
         }
-        internal async Task<ICollection<Drug>> GetDrugsByPCNPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPaginated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByPCNPagintated(insurance, drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByPCNPaginated(insurance, drugName, pageSize, pageNumber);
         }
-        internal async Task<ICollection<Drug>> GetDrugsByBINPagintated(string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByBINPaginated(string insurance, string drugName, int pageSize, int pageNumber)
         {
-            return await _drugRepository.GetDrugsByBINPagintated(insurance, drugName, pageSize, pageNumber);
+            return await _drugRepository.GetDrugsByBINPaginated(insurance, drugName, pageSize, pageNumber);
         }
 
         internal async Task<ICollection<DrugModal>> GetDrugClassesByInsuranceNamePagintated(string insurance, string drugClassName, int pageSize, int pageNumber, string ClassVersion = "ClassV1")
