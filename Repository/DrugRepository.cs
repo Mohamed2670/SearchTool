@@ -41,7 +41,7 @@ namespace SearchTool_ServerSide.Repository
         {
             int offset = (page - 1) * pageSize;
 
-            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.01;");
 
             var sql = @"
         WITH ranked AS (
