@@ -41,34 +41,45 @@ namespace SearchTool_ServerSide.Repository
         {
             int offset = (page - 1) * pageSize;
 
-            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.01;");
+            // Set pg_trgm similarity threshold
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.3;");
 
             var sql = @"
-        WITH ranked AS (
-            SELECT *,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY ""Name""
-                       ORDER BY similarity(""Name"", {0}) DESC
-                   ) AS rn,
-                   similarity(""Name"", {0}) AS sim
-            FROM ""Drugs""
-            WHERE ""Name"" % {0} OR ""Name"" ILIKE '%' || {0} || '%'
-
-        )
-        SELECT *
-        FROM ranked
-        WHERE rn = 1
-        ORDER BY sim DESC
-        LIMIT {1} OFFSET {2};
-    ";
+                    WITH ranked AS (
+                        SELECT *,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY name_unaccent
+                                ORDER BY 
+                                    (
+                                        similarity(name_unaccent, unaccent({0})) * 0.5 +
+                                        ts_rank(name_tsv, plainto_tsquery(unaccent({0}))) * 0.3 +
+                                        CASE WHEN name_soundex = soundex(unaccent({0})) THEN 0.1 ELSE 0 END +
+                                        CASE WHEN name_unaccent ILIKE '%' || unaccent({0}) || '%' THEN 0.1 ELSE 0 END
+                                    ) DESC
+                            ) AS rn,
+                            similarity(name_unaccent, unaccent({0})) AS sim,
+                            ts_rank(name_tsv, plainto_tsquery(unaccent({0}))) AS ts_rank,
+                            soundex(name_unaccent) AS sndx
+                        FROM ""Drugs""
+                        WHERE name_unaccent % unaccent({0})
+                        OR name_tsv @@ plainto_tsquery(unaccent({0}))
+                        OR name_soundex = soundex(unaccent({0}))
+                        OR name_unaccent ILIKE '%' || unaccent({0}) || '%'
+                    )
+                    SELECT *
+                    FROM ranked
+                    WHERE rn = 1
+                    ORDER BY sim DESC, ts_rank DESC
+                    LIMIT {1} OFFSET {2};
+                    ";
 
             var results = await _context.Drugs
                 .FromSqlRaw(sql, query, pageSize, offset)
+                .AsNoTracking()
                 .ToListAsync();
 
             return results;
         }
-
 
 
         public async Task<ICollection<DrugModal>> GetClassesByName(
@@ -2374,39 +2385,51 @@ namespace SearchTool_ServerSide.Repository
         {
             int offset = (pageNumber - 1) * pageSize;
 
+            // adjust similarity threshold
             await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
 
             var sql = @"
-WITH matches AS (
-    SELECT DISTINCT ON (d.""Id"") 
-           d.*,
-           CASE 
-               WHEN LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' THEN 1
-               WHEN d.""Name"" % {1} THEN 2
-               ELSE 3
-           END AS match_type,
-           similarity(d.""Name"", {1}) AS sim
+WITH ranked AS (
+    SELECT d.*,
+           ROW_NUMBER() OVER (
+               PARTITION BY d.""name_unaccent""
+               ORDER BY (
+                   similarity(d.""name_unaccent"", unaccent({1})) * 0.5 +
+                   ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) * 0.3 +
+                   CASE WHEN d.""name_soundex"" = soundex(unaccent({1})) THEN 0.1 ELSE 0 END +
+                   CASE WHEN d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%' THEN 0.1 ELSE 0 END
+               ) DESC
+           ) AS rn,
+           similarity(d.""name_unaccent"", unaccent({1})) AS sim,
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
+           soundex(d.""name_unaccent"") AS sndx
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
     INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
     INNER JOIN ""InsurancePCNs"" pcn ON pcn.""InsuranceId"" = i.""Id""
     INNER JOIN ""InsuranceRxes"" rx ON rx.""InsurancePCNId"" = pcn.""Id""
     WHERE LOWER(rx.""RxGroup"") = LOWER({0})
-      AND (LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' OR d.""Name"" % {1})
+      AND (
+          d.""name_unaccent"" % unaccent({1}) OR
+          d.""name_tsv"" @@ plainto_tsquery(unaccent({1})) OR
+          d.""name_soundex"" = soundex(unaccent({1})) OR
+          d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%'
+      )
 )
 SELECT *
-FROM matches
-ORDER BY match_type, sim DESC, ""Id""
+FROM ranked
+WHERE rn = 1
+ORDER BY sim DESC, ts_rank DESC
 LIMIT {2} OFFSET {3};
 ";
 
             var drugs = await _context.Drugs
                 .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
+                .AsNoTracking()
                 .ToListAsync();
 
             return drugs;
         }
-
 
         internal async Task<ICollection<Drug>> GetDrugsByPCNPaginated(
             string insurance, string drugName, int pageSize, int pageNumber)
@@ -2416,34 +2439,48 @@ LIMIT {2} OFFSET {3};
             await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
 
             var sql = @"
-WITH matches AS (
-    SELECT DISTINCT ON (d.""Id"")
-           d.*,
-           CASE 
-               WHEN LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' THEN 1
-               WHEN d.""Name"" % {1} THEN 2
-               ELSE 3
-           END AS match_type,
-           similarity(d.""Name"", {1}) AS sim
+WITH ranked AS (
+    SELECT d.*,
+           ROW_NUMBER() OVER (
+               PARTITION BY d.""name_unaccent""
+               ORDER BY (
+                   similarity(d.""name_unaccent"", unaccent({1})) * 0.5 +
+                   ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) * 0.3 +
+                   CASE WHEN d.""name_soundex"" = soundex(unaccent({1})) THEN 0.1 ELSE 0 END +
+                   CASE WHEN d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%' THEN 0.1 ELSE 0 END
+               ) DESC
+           ) AS rn,
+           similarity(d.""name_unaccent"", unaccent({1})) AS sim,
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
+           soundex(d.""name_unaccent"") AS sndx
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
     INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
     INNER JOIN ""InsurancePCNs"" p ON p.""InsuranceId"" = i.""Id""
     WHERE LOWER(p.""PCN"") = LOWER({0})
-      AND (LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' OR d.""Name"" % {1})
+      AND (
+          d.""name_unaccent"" % unaccent({1}) OR
+          d.""name_tsv"" @@ plainto_tsquery(unaccent({1})) OR
+          d.""name_soundex"" = soundex(unaccent({1})) OR
+          d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%'
+      )
 )
 SELECT *
-FROM matches
-ORDER BY match_type, sim DESC, ""Id""
+FROM ranked
+WHERE rn = 1
+ORDER BY sim DESC, ts_rank DESC
 LIMIT {2} OFFSET {3};
 ";
 
             var drugs = await _context.Drugs
                 .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
+                .AsNoTracking()
                 .ToListAsync();
 
             return drugs;
         }
+
+
         internal async Task<ICollection<Drug>> GetDrugsByBINPaginated(
             string insurance, string drugName, int pageSize, int pageNumber)
         {
@@ -2452,31 +2489,43 @@ LIMIT {2} OFFSET {3};
             await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
 
             var sql = @"
-WITH matches AS (
-    SELECT DISTINCT ON (d.""Id"") 
-           d.*,
-           CASE 
-               WHEN LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' THEN 1
-               WHEN d.""Name"" % {1} THEN 2
-               ELSE 3
-           END AS match_type,
-           similarity(d.""Name"", {1}) AS sim,
+WITH ranked AS (
+    SELECT d.*,
            di.""Net"",
-           di.""InsurancePayment""
+           di.""InsurancePayment"",
+           ROW_NUMBER() OVER (
+               PARTITION BY d.""name_unaccent""
+               ORDER BY (
+                   similarity(d.""name_unaccent"", unaccent({1})) * 0.5 +
+                   ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) * 0.3 +
+                   CASE WHEN d.""name_soundex"" = soundex(unaccent({1})) THEN 0.1 ELSE 0 END +
+                   CASE WHEN d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%' THEN 0.1 ELSE 0 END
+               ) DESC
+           ) AS rn,
+           similarity(d.""name_unaccent"", unaccent({1})) AS sim,
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
+           soundex(d.""name_unaccent"") AS sndx
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
     INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
     WHERE LOWER(i.""Bin"") = LOWER({0})
-      AND (LOWER(d.""Name"") ILIKE '%' || LOWER({1}) || '%' OR d.""Name"" % {1})
+      AND (
+          d.""name_unaccent"" % unaccent({1}) OR
+          d.""name_tsv"" @@ plainto_tsquery(unaccent({1})) OR
+          d.""name_soundex"" = soundex(unaccent({1})) OR
+          d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%'
+      )
 )
 SELECT *
-FROM matches
-ORDER BY match_type, sim DESC, ""Net"" DESC, ""InsurancePayment"" DESC, ""Id""
+FROM ranked
+WHERE rn = 1
+ORDER BY sim DESC, ts_rank DESC, ""Net"" DESC, ""InsurancePayment"" DESC
 LIMIT {2} OFFSET {3};
 ";
 
             var drugs = await _context.Drugs
                 .FromSqlRaw(sql, insurance, drugName, pageSize, offset)
+                .AsNoTracking()
                 .ToListAsync();
 
             return drugs;
