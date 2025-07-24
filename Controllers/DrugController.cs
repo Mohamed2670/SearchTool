@@ -37,12 +37,7 @@ namespace SearchTool_ServerSide.Controllers
             var item = await _drugService.SearchByNdc(ndc);
             return Ok(item);
         }
-        [HttpGet("GetEPCMOAClassesByDrugId")]
-        public async Task<IActionResult> GetEPCMOAClassesByDrugId([FromQuery] int drugId)
-        {
-            var items = await _drugService.GetEPCMOAClassesByDrugId(drugId);
-            return Ok(items);
-        }
+
         [HttpGet("searchByName")]
         public async Task<IActionResult> SearchByname([FromQuery] string name, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
@@ -131,12 +126,6 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpGet("GetAllDrugsEPCMOA")]
-        public async Task<IActionResult> GetAllDrugsEPCMOA([FromQuery] int drugId, [FromQuery] int pageSize = 1000, [FromQuery] int pageNumber = 1)
-        {
-            var items = await _drugService.GetAllDrugsEPCMOA(drugId, pageSize, pageNumber);
-            return Ok(items);
-        }
         [HttpGet("GetAllDrugs")]
         public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
         {

@@ -114,10 +114,6 @@ namespace SearchTool_ServerSide.Data
         public DbSet<Script> Scripts { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<ClassInsurance> ClassInsurances { get; set; }
-        public DbSet<ClassInsuranceV2> ClassInsuranceV2s { get; set; }
-
-        public DbSet<ClassInsuranceV3> ClassInsuranceV3s { get; set; }
-        public DbSet<ClassInsuranceV4> ClassInsuranceV4s { get; set; }
         public DbSet<ScriptItem> ScriptItems { get; set; }
         public DbSet<Branch> Branches { get; set; }
         public DbSet<DrugBranch> DrugBranches { get; set; }
@@ -129,12 +125,7 @@ namespace SearchTool_ServerSide.Data
         public DbSet<SearchLog> SearchLogs { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
-        public DbSet<DrugClassV2> DrugClassV2s { get; set; }
-        public DbSet<DrugClassV3> DrugClassV3s { get; set; }
-        public DbSet<DrugClassV4> DrugClassV4s { get; set; }
         public DbSet<DrugMedi> DrugMedis { get; set; }
-        public DbSet<DrugEPCMOA> DrugEPCMOAs { get; set; }
-        public DbSet<EPCMOAClass> EPCMOAClasses { get; set; }
         public DbSet<ClassType> ClassTypes { get; set; }
         public DbSet<SearchDrugDetailsLogs> DrugModals { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)

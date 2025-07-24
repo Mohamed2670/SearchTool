@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SearchTool_ServerSide.Data;
@@ -11,9 +12,11 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    partial class SearchToolDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250723174411_DynamicClasses")]
+    partial class DynamicClasses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -197,16 +200,7 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("BranchId")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("BestACQ")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("BestInsurancePayment")
-                        .HasColumnType("numeric");
-
                     b.Property<decimal>("BestNet")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("BestPatientPayment")
                         .HasColumnType("numeric");
 
                     b.Property<int>("DrugId")
@@ -218,9 +212,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<string>("InsuranceName")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<decimal>("Qty")
-                        .HasColumnType("numeric");
 
                     b.Property<string>("ScriptCode")
                         .IsRequired()

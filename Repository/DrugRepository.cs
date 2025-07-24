@@ -746,7 +746,7 @@ namespace SearchTool_ServerSide.Repository
 
 
 
-        public async Task ImportDrugInsuranceAsync(string filePath = "scripts.csv")
+        public async Task ImportDrugInsuranceAsync(string filePath = "Scripts22-7-2025.csv")
         {
             // ========================================================
             // PHASE 0: Read CSV Records
@@ -975,10 +975,11 @@ namespace SearchTool_ServerSide.Repository
             foreach (var record in processedRecords)
             {
                 decimal qty = 1;
+                decimal realQTY = 1;
                 record.RemainingStock = new Random().Next(10, 101);
                 if (record.Quantity != "tableCell29")
                 {
-                    qty = decimal.Parse(record.Quantity);
+                    realQTY = decimal.Parse(record.Quantity);
                 }
 
                 // Normalize NDC and parse the date.
@@ -1012,17 +1013,16 @@ namespace SearchTool_ServerSide.Repository
                 var diKey = (insuranceItem.Id, drug.Id, branch.Id);
                 if (diDict.TryGetValue(diKey, out var existingDI))
                 {
-                    // If the existing record is older, update it.
                     if (existingDI.Date < recordDate)
                     {
                         existingDI.Net = netValue;
+                        existingDI.Quantity = realQTY;
                         existingDI.AcquisitionCost = record.AcquisitionCost;
                         existingDI.Discount = record.Discount;
                         existingDI.InsurancePayment = record.InsurancePayment;
                         existingDI.PatientPayment = record.PatientPayment;
                         existingDI.Date = recordDate;
                         existingDI.ScriptCode = record.Script;
-                        // No need to add to context as it's already tracked.
                     }
                 }
                 else
@@ -1037,11 +1037,11 @@ namespace SearchTool_ServerSide.Repository
                         ScriptCode = record.Script,
                         Date = recordDate,
                         Prescriber = record.Prescriber,
-                        Quantity = qty,
-                        AcquisitionCost = record.AcquisitionCost / qty,
+                        Quantity = realQTY,
+                        AcquisitionCost = record.AcquisitionCost,
                         Discount = record.Discount,
-                        InsurancePayment = record.InsurancePayment / qty,
-                        PatientPayment = record.PatientPayment / qty,
+                        InsurancePayment = record.InsurancePayment,
+                        PatientPayment = record.PatientPayment,
                     };
                     newDrugInsurances.Add(newDI);
                     diDict.Add(diKey, newDI);
@@ -1058,8 +1058,12 @@ namespace SearchTool_ServerSide.Repository
                         // Update if this record has a higher net value.
                         if (netValue > existingCI.BestNet)
                         {
-                            existingCI.BestNet = netValue;
+                            existingCI.BestNet = netValue / realQTY;
+                            existingCI.BestACQ = record.AcquisitionCost / realQTY;
+                            existingCI.BestInsurancePayment = record.InsurancePayment / realQTY;
+                            existingCI.BestPatientPayment = record.PatientPayment / realQTY;
                             existingCI.DrugId = drug.Id;
+                            existingCI.Qty = realQTY;
                             existingCI.ScriptCode = record.Script;
                             existingCI.ScriptDateTime = recordDate;
                         }
@@ -1076,7 +1080,11 @@ namespace SearchTool_ServerSide.Repository
                             Date = yearMonth,
                             ScriptDateTime = yearMonth,
                             ScriptCode = record.Script,
-                            BestNet = netValue
+                            BestNet = netValue / realQTY,
+                            BestACQ = record.AcquisitionCost / realQTY,
+                            BestInsurancePayment = record.InsurancePayment / realQTY,
+                            BestPatientPayment = record.PatientPayment / realQTY,
+                            Qty = realQTY,
                         };
                         newClassInsurances.Add(newCI);
                         ciDict.Add(ciKey, newCI);
@@ -1194,12 +1202,11 @@ namespace SearchTool_ServerSide.Repository
                     continue;
                 if (!scriptDict.TryGetValue(record.Script, out var script))
                     continue;
-                decimal qty = 1;
+                decimal realQTY = 1;
                 record.RemainingStock = new Random().Next(10, 101);
-
                 if (record.Quantity != "tableCell29")
                 {
-                    qty = decimal.Parse(record.Quantity);
+                    realQTY = decimal.Parse(record.Quantity);
                 }
                 var siKey = (script.Id, drug2.Id);
                 if (tempScriptItems.TryGetValue(siKey, out var existingSI))
@@ -1224,7 +1231,7 @@ namespace SearchTool_ServerSide.Repository
                         RxNumber = record.RxNumber,
                         UserEmail = prescriber.Email,
                         PF = record.PF,
-                        Quantity = qty,
+                        Quantity = realQTY,
                         RemainingStock = record.RemainingStock,
                         AcquisitionCost = record.AcquisitionCost,
                         Discount = record.Discount,
@@ -1272,76 +1279,8 @@ namespace SearchTool_ServerSide.Repository
             var item = await _context.Drugs.FirstOrDefaultAsync(x => x.NDC == ndc);
             return item;
         }
-        internal async Task<ICollection<EPCMOAClass>> GetEPCMOAClassesByDrugId(int drugId)
-        {
-            var items = await _context.EPCMOAClasses
-                .Where(x => x.DrugEPCMOAs.Any(de => de.DrugId == drugId))
-                .ToListAsync();
-            return items;
-        }
-        // internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int insuranceId)
-        // {
-        //     var query = from di in _context.ClassInsurances
-        //                 join irx in _context.InsuranceRxes on di.InsuranceId equals irx.Id
-        //                 join ipcn in _context.InsurancePCNs on irx.InsurancePCNId equals ipcn.Id
-        //                 join ins in _context.Insurances on ipcn.InsuranceId equals ins.Id
-        //                 join dr in _context.Drugs on di.DrugId equals dr.Id
-        //                 where di.ClassId == classId
-        //                       && di.InsuranceId == insuranceId
-        //                       && di.Date == _context.ClassInsurances
-        //                                         .Where(x => x.ClassId == classId && x.InsuranceId == insuranceId)
-        //                                         .Max(x => x.Date) // Get the newest date
-        //                 select new
-        //                 {
-        //                     ClassId = dr.DrugClassId,
-        //                     Date = di.Date,
-        //                     BranchId = di.BranchId,
-        //                     ClassName = di.ClassName,
-        //                     DrugId = di.DrugId,
-        //                     ScriptCode = di.ScriptCode,
-        //                     ScriptDateTime = di.ScriptDateTime,
-        //                     DrugName = dr.Name,
-        //                     DrugClass = dr.DrugClass.Name,
-        //                     BranchName = di.Branch.Name,
-        //                     NDC = dr.NDC,
-        //                     BinId = ipcn.InsuranceId,
-        //                     PcnId = ipcn.Id,
-        //                     RxGroupId = irx.Id,
-        //                     DrugInsurance = di,
-        //                     Bin = ins.Bin,
-        //                     BinFullName = ins.Name,
-        //                     RxGroup = irx.RxGroup,
-        //                     PCN = ipcn.PCN,
-        //                     Net = di.BestNet
-        //                 };
 
-        //     var result = await query.FirstOrDefaultAsync();
-        //     if (result == null)
-        //         return null;
-        //     Console.WriteLine("result : ", result.Net);
 
-        //     DrugBestAlternativeReadDto dto = new DrugBestAlternativeReadDto();
-        //     dto.ClassId = result.ClassId;
-        //     dto.Date = result.Date;
-        //     dto.BranchId = result.BranchId;
-        //     dto.ClassName = result.ClassName;
-        //     dto.BestNet = result.Net;
-        //     dto.DrugId = result.DrugId;
-        //     dto.ScriptCode = result.ScriptCode;
-        //     dto.ScriptDateTime = result.ScriptDateTime;
-        //     dto.DrugName = result.DrugName;
-        //     dto.DrugClass = result.DrugClass;
-        //     dto.BranchName = result.BranchName;
-        //     dto.NDC = result.NDC;
-        //     dto.BinId = result.BinId;
-        //     dto.PcnId = result.PcnId;
-        //     dto.RxGroupId = result.RxGroupId;
-        //     dto.BinFullName = result.BinFullName;
-        //     dto.Bin = result.Bin;
-        //     dto.Pcn = result.PCN;
-        //     dto.Rxgroup = result.RxGroup;
-        //     return dto;
-        // }
 
         internal async Task<DrugsAlternativesReadDto> GetDetails(string ndc, int insuranceId)
         {
@@ -1382,12 +1321,7 @@ namespace SearchTool_ServerSide.Repository
             dto.binId = result.binId;
             return dto;
         }
-        // internal async Task<ICollection<string>> getDrugNDCsByNameInsuance(string drugName, int insurnaceId)
-        // {
-        //     var items = await _context.DrugInsurances.Where(x => x.InsuranceId == insurnaceId && x.DrugName == drugName).
-        //     GroupBy(x => x.NDCCode).Select(d => d.Key).ToListAsync();
-        //     return items;
-        // }
+
         internal async Task<DrugClass> getClassbyId(int id)
         {
             var item = await _context.DrugClasses.FirstOrDefaultAsync(x => x.Id == id);
@@ -1427,140 +1361,6 @@ namespace SearchTool_ServerSide.Repository
                 .AsNoTracking()
                 .ToListAsync();
             return items;
-        }
-        // internal async Task<ICollection<Drug>> GetAllDrugsV2(int classId)
-        // {
-        //     var items = await _context.Drugs
-        //          .Where(x => x.DrugClassV2Id == classId)
-        //          .GroupBy(x => x.NDC)
-        //          .Select(g => g.First())
-        //          .ToListAsync();
-        //     return items;
-        // }
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsEPCMOA(int drugId, int pageSize = 1000, int pageNumber = 1)
-        {
-            // Get EPCMOA class IDs for the specified drug
-            var epcmoaClassIds = await _context.DrugEPCMOAs
-                .Where(de => de.DrugId == drugId)
-                .Select(de => de.EPCMOAClassId)
-                .Distinct()
-                .ToListAsync();
-
-            // Get all related drug IDs in the same EPCMOA classes
-            var relatedDrugIds = await _context.DrugEPCMOAs
-                .Where(de => epcmoaClassIds.Contains(de.EPCMOAClassId))
-                .Select(de => new { de.DrugId, de.EPCMOAClassId })
-                .Distinct()
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            // Join Drugs with DrugClasses and DrugInsurances (optional), then with DrugBranches
-            var query = from d in _context.Drugs.Where(d => relatedDrugIds.Select(r => r.DrugId).Contains(d.Id))
-                        from de in _context.EPCMOAClasses.Where(d => relatedDrugIds.Select(r => r.EPCMOAClassId).Contains(d.Id))
-                        join di in _context.DrugInsurances.Where(di => relatedDrugIds.Select(r => r.DrugId).Contains(di.DrugId))
-                            on d.Id equals di.DrugId into diGroup
-                        from di in diGroup.DefaultIfEmpty()
-                        join db in _context.DrugBranches
-                            on new { DrugNDC = d.NDC, BranchId = di.BranchId }
-                            equals new { db.DrugNDC, db.BranchId } into dbGroup
-                        from db in dbGroup.DefaultIfEmpty()
-                        select new { Drug = d, DrugBranch = db, DrugClass = de, DrugInsurance = di, };
-
-            var list = await query.ToListAsync();
-
-            var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
-
-            var insuranceRxDict = await _context.InsuranceRxes
-                .Include(ir => ir.InsurancePCN)
-                    .ThenInclude(ipcn => ipcn.Insurance)
-                .ToDictionaryAsync(x => x.Id);
-
-            var result = list.Select(item =>
-            {
-
-                if (item.DrugInsurance != null)
-                {
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(item.DrugInsurance);
-                    dto.DrugClass = item.DrugClass.Name;
-                    dto.DrugName = item.DrugClass.Name;
-                    dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.DrugClass.Id;
-                    if (insuranceRxDict.TryGetValue(item.DrugInsurance.InsuranceId, out var insuranceRx))
-                    {
-                        dto.insuranceName = insuranceRx.RxGroup;
-                        dto.pcn = insuranceRx.InsurancePCN?.PCN;
-                        dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
-                        dto.rxgroup = insuranceRx.RxGroup;
-                        dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
-                        dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
-                        dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
-                        dto.rxgroupId = insuranceRx.Id;
-                    }
-
-                    if (branchDict.TryGetValue(item.DrugInsurance.BranchId, out var branch))
-                        dto.branchName = branch.Name;
-
-                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                    dto.ApplicationType = item.Drug.ApplicationType;
-                    dto.Route = item.Drug.Route;
-                    dto.Strength = item.Drug.Strength;
-                    dto.Form = item.Drug.Form;
-                    dto.Ingrdient = item.Drug.Ingrdient;
-                    dto.StrengthUnit = item.Drug.StrengthUnit;
-                    dto.Type = item.Drug.Type;
-                    dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch?.Stock ?? 0;
-                    dto.ScriptCode = item.DrugInsurance.ScriptCode;
-                    return dto;
-
-                }
-                else
-                {
-                    var dummyInsurance = new DrugInsurance
-                    {
-                        DrugId = item.Drug.Id,
-                        NDCCode = item.Drug.NDC,
-                        Net = 0,
-                        Date = DateTime.UtcNow,
-                        Quantity = 0,
-                        AcquisitionCost = 0,
-                        Discount = 0,
-                        InsurancePayment = 0,
-                        PatientPayment = 0,
-                        BranchId = 1,
-                        InsuranceId = 0,
-                        Drug = item.Drug
-                    };
-
-                    var dto = _mapper.Map<DrugsAlternativesReadDto>(dummyInsurance);
-                    dto.DrugName = item.Drug.Name;
-                    dto.NDCCode = item.Drug.NDC;
-                    dto.DrugClassId = item.DrugClass.Id;
-                    dto.DrugClass = item.DrugClass.Name;
-                    dto.insuranceName = null;
-                    dto.bin = null;
-                    dto.pcn = null;
-                    dto.rxgroup = null;
-                    dto.branchName = null;
-                    dto.ApplicationNumber = item.Drug.ApplicationNumber;
-                    dto.ApplicationType = item.Drug.ApplicationType;
-                    dto.Route = item.Drug.Route;
-                    dto.Strength = item.Drug.Strength;
-                    dto.Form = item.Drug.Form;
-                    dto.Ingrdient = item.Drug.Ingrdient;
-                    dto.StrengthUnit = item.Drug.StrengthUnit;
-                    dto.Type = item.Drug.Type;
-                    dto.TECode = item.Drug.TECode;
-                    dto.Stock = item.DrugBranch?.Stock ?? 0;
-                    dto.ScriptCode = null;
-                    return dto;
-
-                }
-
-            }).ToList();
-
-            return result;
         }
 
 
@@ -1611,7 +1411,7 @@ namespace SearchTool_ServerSide.Repository
                     NDCCode = item.Drug.NDC,
                     Net = 0,
                     Date = DateTime.UtcNow,
-                    Quantity = 0,
+                    Quantity = 1,
                     AcquisitionCost = 0,
                     Discount = 0,
                     InsurancePayment = 0,
@@ -1625,7 +1425,7 @@ namespace SearchTool_ServerSide.Repository
                 dto.NDCCode = item.Drug.NDC;
                 dto.DrugClassId = item.DrugClass.Id;
                 dto.DrugClass = item.ClassInfo.Name;
-
+                dto.Quantity = di?.Quantity ?? 1;
                 dto.ApplicationNumber = item.Drug.ApplicationNumber;
                 dto.ApplicationType = item.Drug.ApplicationType;
                 dto.Route = item.Drug.Route;
@@ -1801,26 +1601,26 @@ namespace SearchTool_ServerSide.Repository
         }
 
         public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, string classVersion = "ClassV1")
-
         {
-            // Use a constant cache key for the entire dataset.
-            const string cacheKey = "AllLatestScripts";
+            // Use classVersion as part of the cache key
+            string cacheKey = $"AllLatestScripts_{classVersion}";
             List<AuditReadDto> allData;
 
-            // Attempt to get the dataset from cache.
+            // Try to get the specific classVersion from the cache
             if (!_cache.TryGetValue(cacheKey, out allData))
             {
-                // Cache miss: load the entire dataset from the database.
+                // Cache miss: Load the entire dataset for this classVersion
                 allData = await GetAuditDtosWithBestBeforeOrPrevMonthAsync(classVersion);
 
-                // Set up cache options. Adjust the expiration as necessary.
+                // Set up cache options (e.g., 120 minutes sliding expiration)
                 var cacheOptions = new MemoryCacheEntryOptions()
                     .SetSlidingExpiration(TimeSpan.FromMinutes(120));
 
-                // Store the full dataset in cache.
+                // Cache this version separately
                 _cache.Set(cacheKey, allData, cacheOptions);
             }
-            // Paginate the data from the cache.
+
+            // Paginate the cached data
             var pagedData = allData
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -1828,7 +1628,6 @@ namespace SearchTool_ServerSide.Repository
 
             return pagedData;
         }
-
 
         public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
         {
@@ -1967,7 +1766,8 @@ namespace SearchTool_ServerSide.Repository
                     NetProfit = si.NetProfit,
                     NDCCode = si.NDCCode,
                     DrugClass = si.Drug.DrugClasses.First(dc => dc.ClassInfo.ClassType.Name == classTypeName).ClassInfo.Name,
-                    BranchCode = si.Script.Branch.Code
+                    BranchCode = si.Script.Branch.Code,
+                    NetProfitPerItem = si.NetProfit / si.Quantity,
                 };
 
                 if (bestAlt != null)
@@ -1975,10 +1775,11 @@ namespace SearchTool_ServerSide.Repository
                     dto.HighestDrugId = bestAlt.DrugId;
                     dto.HighestDrugName = bestAlt.Drug?.Name ?? "";
                     dto.HighestDrugNDC = bestAlt.Drug?.NDC ?? "";
-                    dto.HighestNet = bestAlt.BestNet;
+                    dto.HighestNet = bestAlt.BestNet * si.Quantity;
                     dto.HighestScriptCode = bestAlt.ScriptCode;
                     dto.HighestScriptDate = bestAlt.ScriptDateTime;
-
+                    dto.HighestNetProfitPerItem = bestAlt.BestNet;
+                    dto.HighestQuantity = bestAlt.Qty;
                     // Use the pre-built dictionary to get RemainingStock
                     stockDict.TryGetValue(
                         (bestAlt.ScriptCode, bestAlt.DrugId),
@@ -2380,13 +2181,12 @@ namespace SearchTool_ServerSide.Repository
         }
 
 
-        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePaginated(
-            string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByInsuranceNamePaginated(string insurance, string drugName, int pageSize, int pageNumber)
         {
             int offset = (pageNumber - 1) * pageSize;
 
-            // adjust similarity threshold
-            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.2;");
+            // Enable fuzzy search
+            await _context.Database.ExecuteSqlRawAsync("SET pg_trgm.similarity_threshold = 0.3;");
 
             var sql = @"
 WITH ranked AS (
@@ -2401,13 +2201,10 @@ WITH ranked AS (
                ) DESC
            ) AS rn,
            similarity(d.""name_unaccent"", unaccent({1})) AS sim,
-           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
-           soundex(d.""name_unaccent"") AS sndx
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
-    INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
-    INNER JOIN ""InsurancePCNs"" pcn ON pcn.""InsuranceId"" = i.""Id""
-    INNER JOIN ""InsuranceRxes"" rx ON rx.""InsurancePCNId"" = pcn.""Id""
+    INNER JOIN ""InsuranceRxes"" rx ON di.""InsuranceId"" = rx.""Id""
     WHERE LOWER(rx.""RxGroup"") = LOWER({0})
       AND (
           d.""name_unaccent"" % unaccent({1}) OR
@@ -2431,8 +2228,7 @@ LIMIT {2} OFFSET {3};
             return drugs;
         }
 
-        internal async Task<ICollection<Drug>> GetDrugsByPCNPaginated(
-            string insurance, string drugName, int pageSize, int pageNumber)
+        internal async Task<ICollection<Drug>> GetDrugsByPCNPaginated(string insurance, string drugName, int pageSize, int pageNumber)
         {
             int offset = (pageNumber - 1) * pageSize;
 
@@ -2451,13 +2247,12 @@ WITH ranked AS (
                ) DESC
            ) AS rn,
            similarity(d.""name_unaccent"", unaccent({1})) AS sim,
-           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
-           soundex(d.""name_unaccent"") AS sndx
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
-    INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
-    INNER JOIN ""InsurancePCNs"" p ON p.""InsuranceId"" = i.""Id""
-    WHERE LOWER(p.""PCN"") = LOWER({0})
+    INNER JOIN ""InsuranceRxes"" rx ON di.""InsuranceId"" = rx.""Id""
+    INNER JOIN ""InsurancePCNs"" pcn ON rx.""InsurancePCNId"" = pcn.""Id""
+    WHERE LOWER(pcn.""PCN"") = LOWER({0})
       AND (
           d.""name_unaccent"" % unaccent({1}) OR
           d.""name_tsv"" @@ plainto_tsquery(unaccent({1})) OR
@@ -2481,8 +2276,9 @@ LIMIT {2} OFFSET {3};
         }
 
 
+
         internal async Task<ICollection<Drug>> GetDrugsByBINPaginated(
-            string insurance, string drugName, int pageSize, int pageNumber)
+    string insurance, string drugName, int pageSize, int pageNumber)
         {
             int offset = (pageNumber - 1) * pageSize;
 
@@ -2500,14 +2296,17 @@ WITH ranked AS (
                    ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) * 0.3 +
                    CASE WHEN d.""name_soundex"" = soundex(unaccent({1})) THEN 0.1 ELSE 0 END +
                    CASE WHEN d.""name_unaccent"" ILIKE '%' || unaccent({1}) || '%' THEN 0.1 ELSE 0 END
-               ) DESC
+               ) DESC,
+               di.""Net"" DESC,
+               di.""InsurancePayment"" DESC
            ) AS rn,
            similarity(d.""name_unaccent"", unaccent({1})) AS sim,
-           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank,
-           soundex(d.""name_unaccent"") AS sndx
+           ts_rank(d.""name_tsv"", plainto_tsquery(unaccent({1}))) AS ts_rank
     FROM ""DrugInsurances"" di
     INNER JOIN ""Drugs"" d ON di.""DrugId"" = d.""Id""
-    INNER JOIN ""Insurances"" i ON di.""InsuranceId"" = i.""Id""
+    INNER JOIN ""InsuranceRxes"" rx ON di.""InsuranceId"" = rx.""Id""
+    INNER JOIN ""InsurancePCNs"" pcn ON rx.""InsurancePCNId"" = pcn.""Id""
+    INNER JOIN ""Insurances"" i ON pcn.""InsuranceId"" = i.""Id""
     WHERE LOWER(i.""Bin"") = LOWER({0})
       AND (
           d.""name_unaccent"" % unaccent({1}) OR
