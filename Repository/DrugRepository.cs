@@ -1600,17 +1600,17 @@ namespace SearchTool_ServerSide.Repository
             public string? PHARM_CLASSES { get; set; }
         }
 
-        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, string classVersion = "ClassV1")
+        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, string classVersion = "ClassV1", string matchOn = "BIN")
         {
             // Use classVersion as part of the cache key
-            string cacheKey = $"AllLatestScripts_{classVersion}";
+            string cacheKey = $"AllLatestScripts_{classVersion}_{matchOn}";
             List<AuditReadDto> allData;
 
             // Try to get the specific classVersion from the cache
             if (!_cache.TryGetValue(cacheKey, out allData))
             {
                 // Cache miss: Load the entire dataset for this classVersion
-                allData = await GetAuditDtosWithBestBeforeOrPrevMonthAsync(classVersion);
+                allData = await GetAuditDtosWithBestBeforeOrPrevMonthAsync(classVersion, matchOn);
 
                 // Set up cache options (e.g., 120 minutes sliding expiration)
                 var cacheOptions = new MemoryCacheEntryOptions()
@@ -1629,44 +1629,7 @@ namespace SearchTool_ServerSide.Repository
             return pagedData;
         }
 
-        public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
-        {
-            const string cacheKey = "AllLatestScripts";
-            List<AuditReadDto> allData;
-
-            // Try to retrieve the full dataset from cache
-            if (!_cache.TryGetValue(cacheKey, out allData))
-            {
-                // Cache miss: Load the full dataset from the database
-                allData = await LoadAllLatestScriptsFromDatabaseAsync();
-
-                // Configure cache options (adjust expiration as necessary)
-                var cacheOptions = new MemoryCacheEntryOptions()
-                    .SetSlidingExpiration(TimeSpan.FromMinutes(120));
-
-                // Store the full dataset in cache
-                _cache.Set(cacheKey, allData, cacheOptions);
-            }
-
-            // Filter the cached data for the specified month and year
-            var filteredData = allData
-                .Where(x => x.Date.Month == month && x.Date.Year == year)
-                .ToList();
-
-            return filteredData;
-        }
-        private async Task<List<ScriptItem>> GetScriptItemsAsync(string classTypeName, DateTime from, DateTime to)
-        {
-            return await _context.ScriptItems
-                .Include(si => si.Script).ThenInclude(s => s.Branch)
-                .Include(si => si.Drug).ThenInclude(d => d.DrugClasses).ThenInclude(dc => dc.ClassInfo).ThenInclude(ci => ci.ClassType)
-                .Include(si => si.Insurance)
-                .Include(si => si.Prescriber)
-                .Where(si => si.Script.Date >= from && si.Script.Date < to)
-                .Where(si => si.Drug.DrugClasses.Any(dc => dc.ClassInfo.ClassType.Name == classTypeName))
-                .ToListAsync();
-        }
-        private async Task<List<AuditReadDto>> GetAuditDtosWithBestBeforeOrPrevMonthAsync(string classTypeName)
+        private async Task<List<AuditReadDto>> GetAuditDtosWithBestBeforeOrPrevMonthAsync(string classTypeName, string matchOn)
         {
             // Step 1️⃣ Load all ScriptItems + navigation
             var scriptItems = await _context.ScriptItems
@@ -1674,31 +1637,48 @@ namespace SearchTool_ServerSide.Repository
                 .Include(si => si.Script).ThenInclude(s => s.Branch)
                 .Include(si => si.Drug).ThenInclude(d => d.DrugClasses).ThenInclude(dc => dc.ClassInfo).ThenInclude(ci => ci.ClassType)
                 .Include(si => si.Insurance)
+                    .ThenInclude(irx => irx.InsurancePCN)
+                        .ThenInclude(pcn => pcn.Insurance)
                 .Include(si => si.Prescriber)
                 .Where(si => si.Drug.DrugClasses.Any(dc => dc.ClassInfo.ClassType.Name == classTypeName))
                 .ToListAsync();
 
             if (!scriptItems.Any()) return new();
 
-            // Step 2️⃣ Load all ClassInsurances
+            // Step 2️⃣ Load all ClassInsurances with full navigation to BIN
             var classInsurances = await _context.ClassInsurances
                 .AsNoTracking()
                 .Include(ci => ci.Drug)
+                .Include(ci => ci.Insurance)
+                    .ThenInclude(irx => irx.InsurancePCN)
+                        .ThenInclude(pcn => pcn.Insurance)
                 .ToListAsync();
 
-            // Step 3️⃣ Build fast lookups
-
-            // Group ClassInsurances by (BranchId, InsuranceId, ClassInfoId)
+            // Step 3️⃣ Group ClassInsurances by (BranchId, BIN, ClassInfoId)
             var ciGroups = classInsurances
-                .GroupBy(ci => new
+                .Where(ci => ci.Insurance?.InsurancePCN?.Insurance?.Bin != null)
+                .GroupBy(ci =>
                 {
-                    ci.BranchId,
-                    ci.InsuranceId,
-                    ci.ClassInfoId
+                    string? matchValue = matchOn.ToUpper() switch
+                    {
+                        "BIN" => ci.Insurance?.InsurancePCN?.Insurance?.Bin,
+                        "PCN" => ci.Insurance?.InsurancePCN?.PCN,
+                        "RX" => ci.Insurance?.RxGroup,
+                        _ => null
+                    };
+
+                    return new
+                    {
+                        ci.BranchId,
+                        Match = matchValue,
+                        ci.ClassInfoId
+                    };
                 })
+                .Where(g => g.Key.Match != null)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Build ScriptItem RemainingStock dictionary
+
+            // Step 4️⃣ Build ScriptItem RemainingStock dictionary
             var stockDict = scriptItems
                 .GroupBy(si => (si.Script.ScriptCode, si.DrugId))
                 .ToDictionary(
@@ -1717,24 +1697,34 @@ namespace SearchTool_ServerSide.Repository
                     .First(dc => dc.ClassInfo.ClassType.Name == classTypeName)
                     .ClassId;
 
-                ClassInsurance? bestAlt = null;
+                string? matchValue = matchOn.ToUpper() switch
+                {
+                    "BIN" => si.Insurance?.InsurancePCN?.Insurance?.Bin,
+                    "PCN" => si.Insurance?.InsurancePCN?.PCN,
+                    "RX" => si.Insurance?.RxGroup,
+                    _ => null
+                };
+
+                if (matchValue == null) continue;
 
                 var key = new
                 {
                     si.Script.BranchId,
-                    si.InsuranceId,
+                    Match = matchValue,
                     ClassInfoId = drugClassInfoId
                 };
 
+                ClassInsurance? bestAlt = null;
+
                 if (ciGroups.TryGetValue(key, out var ciList))
                 {
-                    // First: prevMonth
+                    // First try: previous month
                     bestAlt = ciList
                         .Where(ci => StartOfMonth(ci.Date) == prevMonth)
                         .OrderByDescending(ci => ci.BestNet)
                         .FirstOrDefault();
 
-                    // If not found → most recent ≤ scriptDate
+                    // Fallback: most recent ≤ scriptDate
                     if (bestAlt == null)
                     {
                         bestAlt = ciList
@@ -1755,7 +1745,13 @@ namespace SearchTool_ServerSide.Repository
                     Prescriber = si.Prescriber?.Name ?? "",
                     DrugName = si.Drug.Name,
                     DrugId = si.DrugId,
-                    Insurance = si.Insurance?.RxGroup ?? "",
+                    InsuranceRx = si.Insurance?.RxGroup ?? "",
+                    BINCode = si.Insurance?.InsurancePCN?.Insurance?.Bin ?? "",
+                    BINName = si.Insurance?.InsurancePCN?.Insurance?.Name ?? "",
+                    PCNName = si.Insurance?.InsurancePCN?.PCN ?? "",
+                    RxGroupId = si.Insurance?.Id ?? 1,
+                    PcnId = si.Insurance.InsurancePCN?.Id ?? 1,
+                    BinId = si.Insurance?.InsurancePCN?.Insurance?.Id ?? 1,
                     InsuranceId = si.InsuranceId,
                     PF = si.PF,
                     Quantity = si.Quantity,
@@ -1768,6 +1764,7 @@ namespace SearchTool_ServerSide.Repository
                     DrugClass = si.Drug.DrugClasses.First(dc => dc.ClassInfo.ClassType.Name == classTypeName).ClassInfo.Name,
                     BranchCode = si.Script.Branch.Code,
                     NetProfitPerItem = si.NetProfit / si.Quantity,
+
                 };
 
                 if (bestAlt != null)
@@ -1780,7 +1777,13 @@ namespace SearchTool_ServerSide.Repository
                     dto.HighestScriptDate = bestAlt.ScriptDateTime;
                     dto.HighestNetProfitPerItem = bestAlt.BestNet;
                     dto.HighestQuantity = bestAlt.Qty;
-                    // Use the pre-built dictionary to get RemainingStock
+                    dto.HighestBINCode = bestAlt.Insurance?.InsurancePCN?.Insurance?.Bin ?? "";
+                    dto.HighestBINName = bestAlt.Insurance?.InsurancePCN?.Insurance?.Name ?? "";
+                    dto.HighestPCNName = bestAlt.Insurance?.InsurancePCN?.PCN ?? "";
+                    dto.HighestInsuranceRx = bestAlt.Insurance?.RxGroup ?? "";
+                    dto.HighestRxGroupId = bestAlt.InsuranceId;
+                    dto.HighestPcnId = bestAlt.Insurance?.InsurancePCN?.Id ?? 1;
+                    dto.HighestBinId = bestAlt.Insurance?.InsurancePCN?.Insurance?.Id ?? 1;
                     stockDict.TryGetValue(
                         (bestAlt.ScriptCode, bestAlt.DrugId),
                         out int altRemainingStock);
@@ -1794,13 +1797,12 @@ namespace SearchTool_ServerSide.Repository
             return auditDtos;
         }
 
-        // Helper
+        // Helper method
         private static DateTime StartOfMonth(DateTime dt)
         {
             dt = dt.ToUniversalTime();
             return new DateTime(dt.Year, dt.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         }
-
 
 
 
@@ -1880,7 +1882,7 @@ namespace SearchTool_ServerSide.Repository
                     HighestDrugNDC = bestDrug != null ? bestDrug.NDC : null,
                     HighestDrugId = bestDrug != null ? bestDrug.Id : 0,
                     BranchCode = branch != null ? branch.Name : null,
-                    Insurance = insurance != null ? insurance.RxGroup : null,
+                    InsuranceRx = insurance != null ? insurance.RxGroup : null,
                     InsuranceId = insurance != null ? insurance.Id : 0,
                     PF = scriptItem.PF,
                     Prescriber = prescriber != null ? prescriber.Name : "Unknown",

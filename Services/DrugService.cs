@@ -101,11 +101,11 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000, string classVersion = "ClassV1")
+        internal async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int page = 1, int pageSize = 1000, string classVersion = "ClassV1", string matchOn = "BIN")
         {
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-            var items = await _drugRepository.GetAllLatestScriptsPaginated(page, pageSize, classVersion);
+            var items = await _drugRepository.GetAllLatestScriptsPaginated(page, pageSize, classVersion, matchOn);
             stopwatch.Stop();
             Console.WriteLine("Total time taken : " + stopwatch.ElapsedMilliseconds);
             return items;
@@ -219,11 +219,7 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        public async Task<ICollection<AuditReadDto>> GetLatestScriptsByMonthYear(int month, int year)
-        {
-            var items = await _drugRepository.GetLatestScriptsByMonthYear(month, year);
-            return items;
-        }
+
         public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
         {
             // await _drugRepository.AddScripts(scriptAddDtos);

@@ -16,8 +16,28 @@ namespace SearchTool_ServerSide.Dtos
         public string DrugName { get; set; }
         public int DrugId { get; set; }
 
-        public string Insurance { get; set; }
+        // 🧾 Insurance Info
         public int InsuranceId { get; set; }
+        public string InsuranceRx { get; set; }
+        public string BINCode { get; set; }
+        public string BINName { get; set; }
+        public string PCNName { get; set; }
+
+        // 🧾 Linking IDs
+        public int? RxGroupId { get; set; }
+        public int? BinId { get; set; }
+        public int? PcnId { get; set; }
+
+        // 🧾 Highest Alternative Info
+        public string HighestInsuranceRx { get; set; }
+        public string HighestBINCode { get; set; }
+        public string HighestBINName { get; set; }
+        public string HighestPCNName { get; set; }
+
+        // 🧾 Highest Alternative Linking IDs
+        public int? HighestRxGroupId { get; set; }
+        public int? HighestBinId { get; set; }
+        public int? HighestPcnId { get; set; }
 
         public string PF { get; set; }
 

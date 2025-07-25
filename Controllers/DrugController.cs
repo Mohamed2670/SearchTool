@@ -249,9 +249,9 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginated"), Authorize(Policy = "Admin"), Authorize]
-        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string classVersion = "ClassV1")
+        public async Task<IActionResult> GetAllLatestScriptsPaginated([FromQuery] int pageNumber, [FromQuery] int pageSize, [FromQuery] string classVersion = "ClassV1", [FromQuery] string matchOn = "BIN")
         {
-            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize, classVersion);
+            var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize, classVersion, matchOn);
             return Ok(items);
         }
         [HttpGet("GetAllLatestScriptsPaginatedv2"), Authorize]
@@ -260,12 +260,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetAllLatestScriptsPaginated(pageNumber, pageSize);
             return Ok(items);
         }
-        [HttpGet("GetLatestScriptsByMonthYear"), Authorize(Policy = "Admin")]
-        public async Task<IActionResult> GetLatestScriptsByMonthYear([FromQuery] int month, [FromQuery] int year)
-        {
-            var items = await _drugService.GetLatestScriptsByMonthYear(month, year);
-            return Ok(items);
-        }
+
         [HttpPost("AddScritps"), Authorize(Policy = "Admin")]
         public async Task<IActionResult> AddScritps(ICollection<ScriptAddDto> scriptAddDtos)
         {
