@@ -1630,7 +1630,7 @@ namespace SearchTool_ServerSide.Repository
             return pagedData;
         }
 
-        private async Task<List<AuditReadDto>> GetAuditDtosWithBestBeforeOrPrevMonthAsync(string classTypeName, string matchOn)
+ private async Task<List<AuditReadDto>> GetAuditDtosWithBestBeforeOrPrevMonthAsync(string classTypeName, string matchOn)
         {
             // Step 1️⃣ Load all ScriptItems + navigation
             var scriptItems = await _context.ScriptItems
@@ -1741,8 +1741,8 @@ namespace SearchTool_ServerSide.Repository
                     Date = si.Script.Date,
                     RemainingStock = si.RemainingStock,
                     ScriptCode = si.Script.ScriptCode,
-                    RxNumber = si.Script.User.Name,
-                    User = si.UserEmail,
+                    RxNumber = si.RxNumber,
+                    User = si.UserEmail.Replace(".@pharmacy.com", ""),
                     Prescriber = si.Prescriber?.Name ?? "",
                     DrugName = si.Drug.Name,
                     DrugId = si.DrugId,
@@ -1797,7 +1797,6 @@ namespace SearchTool_ServerSide.Repository
 
             return auditDtos;
         }
-
         // Helper method
         private static DateTime StartOfMonth(DateTime dt)
         {
