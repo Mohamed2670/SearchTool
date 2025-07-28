@@ -27,7 +27,7 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        public async Task<ICollection<DrugModal>> GetClassesByName(string name,string classVersion, int pageNumber, int pageSize)
+        public async Task<ICollection<DrugModal>> GetClassesByName(string name, string classVersion, int pageNumber, int pageSize)
         {
             var items = await _drugRepository.GetClassesByName(name, classVersion, pageNumber, pageSize);
             return items;
@@ -272,9 +272,13 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<IEnumerable<Drug>> GetDrugsByClassId(int classId,string ClassType, int pageSize, int pageNumber)
+        internal async Task<IEnumerable<Drug>> GetDrugsByClassId(int classId, string ClassType, int pageSize, int pageNumber)
         {
             return await _drugRepository.GetDrugsByClassId(classId, ClassType, pageSize, pageNumber);
+        }
+        internal async Task<int> ClearClassNames()
+        {
+            return await _drugRepository.ClearClassNames();
         }
     }
 }

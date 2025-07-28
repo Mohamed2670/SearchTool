@@ -165,7 +165,7 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _drugService.GetScriptByScriptCode(scriptCode);
             return Ok(items);
         }
-        [HttpGet("ImportInsurancesFromCsvAsync"),AllowAnonymous]
+        [HttpGet("ImportInsurancesFromCsvAsync"), AllowAnonymous]
         public async Task<IActionResult> ImportInsurancesFromCsvAsync()
         {
             await _drugService.ImportInsurancesFromCsvAsync();
@@ -269,7 +269,7 @@ namespace SearchTool_ServerSide.Controllers
             return Ok("Items Added Succesfuly");
         }
 
-        [HttpGet("AddMediCare"),AllowAnonymous]
+        [HttpGet("AddMediCare"), AllowAnonymous]
         public async Task<IActionResult> AddMediCare()
         {
             await _drugService.AddMediCare();
@@ -305,6 +305,12 @@ namespace SearchTool_ServerSide.Controllers
         {
             var items = await _drugService.GetDrugsByClassId(classId, classType, pageSize, pageNumber);
             return Ok(items);
+        }
+        [HttpGet("ClearClassNames"), AllowAnonymous]
+        public async Task<IActionResult> ClearClassNames()
+        {
+            var result = await _drugService.ClearClassNames();
+            return Ok(result);
         }
         
 

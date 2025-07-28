@@ -128,6 +128,9 @@ namespace SearchTool_ServerSide.Data
         public DbSet<DrugMedi> DrugMedis { get; set; }
         public DbSet<ClassType> ClassTypes { get; set; }
         public DbSet<SearchDrugDetailsLogs> DrugModals { get; set; }
+        public DbSet<FeedbackFormEntry> FeedbackForms { get; set; }
+        public DbSet<SectionEntry> Sections { get; set; }
+        public DbSet<QuestionEntry> Questions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -145,6 +148,9 @@ namespace SearchTool_ServerSide.Data
                     .HasPrincipalKey(d => d.NDC)
                     .OnDelete(DeleteBehavior.Cascade); // Or Restrict
             });
+            modelBuilder.Entity<QuestionEntry>()
+                        .Property(q => q.SelectedAnswersJson)
+                        .HasColumnType("jsonb");
             // Define Composite Keys
             modelBuilder.Entity<DrugClass>(entity =>
             {

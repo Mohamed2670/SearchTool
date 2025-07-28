@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 using AutoMapper;
 using CsvHelper;
 using CsvHelper.Configuration;
@@ -1740,7 +1741,7 @@ namespace SearchTool_ServerSide.Repository
                     Date = si.Script.Date,
                     RemainingStock = si.RemainingStock,
                     ScriptCode = si.Script.ScriptCode,
-                    RxNumber = si.RxNumber,
+                    RxNumber = si.Script.User.Name,
                     User = si.UserEmail,
                     Prescriber = si.Prescriber?.Name ?? "",
                     DrugName = si.Drug.Name,
@@ -2549,6 +2550,44 @@ LIMIT {2} OFFSET {3};
                 .ToListAsync();
 
             return pagedResults;
+        }
+        internal async Task<int> ClearClassNames()
+        {
+            var classes = await _context.ClassInfos
+                                         .Where(x => x.ClassTypeId == 2)
+                                         .ToListAsync();
+
+            string[] patternsToRemove = {
+        @"\s?\(ONT\)",
+        @"\s?\(CRE\)",
+        @"\s?\(TAB\)",
+        @"\s?\(CAP\)"
+    };
+
+            int cleanedCount = 0;
+
+            foreach (var classInfo in classes)
+            {
+                string originalName = classInfo.Name;
+                string cleanedName = originalName;
+
+                foreach (var pattern in patternsToRemove)
+                {
+                    cleanedName = Regex.Replace(cleanedName, pattern, "", RegexOptions.IgnoreCase);
+                }
+
+                cleanedName = cleanedName.Trim();
+
+                if (cleanedName != originalName)
+                {
+                    classInfo.Name = cleanedName;
+                    cleanedCount++;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return cleanedCount;
         }
     }
     // public sealed class InsuranceMap : ClassMap<Insurance>

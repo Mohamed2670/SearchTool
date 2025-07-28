@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -45,6 +46,11 @@ builder.Services.AddAuthentication()
 builder.Services.AddDbContext<SearchToolDBContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("SearchTool")));
 builder.Services.AddDbContext<GlobalDBContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("Global")));
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 builder.Services.AddScoped<UserAccessToken>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(GenericRepository<>));
@@ -66,7 +72,7 @@ builder.Services.AddScoped<InsuranceService>();
 builder.Services.AddScoped<LogsService>();
 builder.Services.AddScoped<DataSyncService>();
 builder.Services.AddScoped<MainCompanyService>();
-
+builder.Services.AddScoped<FeedbackService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
