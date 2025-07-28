@@ -6,6 +6,7 @@ namespace SearchTool_ServerSide.Models
         public string FormTitle { get; set; }
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
         public List<SectionEntry> Sections { get; set; }
+        public string? UserEmail { get; set; } // Optional, if you want to track who submitted the feedback
     }
 
     public class SectionEntry
@@ -34,6 +35,7 @@ namespace SearchTool_ServerSide.Models
     {
         public string FormTitle { get; set; }
         public List<SectionResponse> Sections { get; set; }
+        public string? UserEmail { get; set; } // Optional, if you want to track who submitted the feedback
     }
 
     public class SectionResponse
