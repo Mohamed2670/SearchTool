@@ -29,13 +29,13 @@ namespace SearchTool_ServerSide.Controllers
             await feedbackService.SaveFeedbackAsync(feedback);
             return Ok(new { message = "Feedback submitted to DB" });
         }
-        [HttpGet("all")]
+        [HttpGet("all"),Authorize(Policy = "SuperAdmin")]
         public async Task<IActionResult> GetAllFeedbacks()
         {
             var feedbackList = await feedbackService.GetAllFeedbackAsync();
             return Ok(feedbackList);
         }
-        [HttpGet("export")]
+        [HttpGet("export"),AllowAnonymous]
         public async Task<IActionResult> ExportCsv()
         {
             var csvBytes = await feedbackService.ExportFeedbackAsCsvAsync();
