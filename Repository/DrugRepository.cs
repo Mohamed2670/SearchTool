@@ -1176,9 +1176,12 @@ namespace SearchTool_ServerSide.Repository
             // PHASE 4: Process ScriptItems
             // ========================================================
             // Build a temporary dictionary keyed by (ScriptId, DrugId)
-            var tempScriptItems = new Dictionary<(string scriptId, int drugId, DateTime date), ScriptItem>();
-            int count = 0;
-            var newScriptItems = new List<ScriptItem>();
+            var scriptItemDic = await _context.ScriptItems
+                .GroupBy(s => new { s.ScriptId, s.DrugId, s.Script.Date })
+                .ToDictionaryAsync(g => g.Key, g => g.First());
+            var tempScriptItems = new Dictionary<(int scriptId, int drugId, DateTime date), ScriptItem>();
+            Console.WriteLine("Script item length before  : " + scriptItemDic.Count());
+
             foreach (var record in processedRecords)
             {
                 record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
@@ -1198,12 +1201,12 @@ namespace SearchTool_ServerSide.Repository
                     realQTY = decimal.Parse(record.Quantity);
                 }
 
-                var siKey = (script.ScriptCode, drug2.Id, recordDate);
-                Console.WriteLine($"Processing ScriptItem: ScriptCode={script.ScriptCode}, DrugId={drug2.Id}, Date={recordDate}");
-                if (tempScriptItems.TryGetValue(siKey, out var existingSI))
+                var siKey = (script.Id, drug2.Id, recordDate);
+                var siKey2 = new { ScriptId = script.Id, DrugId = drug2.Id, Date = recordDate };
+
+                if (scriptItemDic.TryGetValue(siKey2, out var existingSI))
                 {
-                    Console.WriteLine("Script : " + script.ScriptCode + " Drug : " + existingSI.DrugId);
-                    continue; // Skip if this ScriptItem already exists
+                    continue; 
                 }
                 else
                 {
@@ -1225,13 +1228,15 @@ namespace SearchTool_ServerSide.Repository
                         PatientPayment = record.PatientPayment,
                         NDCCode = record.NDCCode
                     };
-                    count++;
+
                     tempScriptItems.Add(siKey, newSI);
+                    scriptItemDic[siKey2] = newSI;
                 }
             }
+
             _context.ScriptItems.AddRange(tempScriptItems.Values);
             await _context.SaveChangesAsync();
-            return count;
+            return tempScriptItems.Count();
         }
 
 
