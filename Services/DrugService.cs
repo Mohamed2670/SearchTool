@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using AutoMapper;
 using SearchTool_ServerSide.Dtos;
 using SearchTool_ServerSide.Dtos.ClassDtos;
@@ -220,11 +221,6 @@ namespace SearchTool_ServerSide.Services
         }
 
 
-        public async Task AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
-        {
-            // await _drugRepository.AddScripts(scriptAddDtos);
-        }
-
         // internal async Task<DrugBestAlternativeReadDto> GetBestAlternativeByNDCRxGroupId(int classId, int rxGroupId)
         // {
         //     var items = await _drugRepository.GetBestAlternativeByNDCRxGroupId(classId, rxGroupId);
@@ -279,6 +275,14 @@ namespace SearchTool_ServerSide.Services
         internal async Task<int> ClearClassNames()
         {
             return await _drugRepository.ClearClassNames();
+        }
+        internal async Task<int> AddScripts(ICollection<ScriptAddDto> scriptAddDtos)
+        {
+            return await _drugRepository.AddScripts(scriptAddDtos);
+        }
+        internal async Task<int> CleanAndMergeClasses()
+        {
+            return await _drugRepository.CleanAndMergeClasses();
         }
     }
 }

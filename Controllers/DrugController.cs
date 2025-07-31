@@ -261,12 +261,12 @@ namespace SearchTool_ServerSide.Controllers
             return Ok(items);
         }
 
-        [HttpPost("AddScritps"), Authorize(Policy = "Admin")]
-        public async Task<IActionResult> AddScritps(ICollection<ScriptAddDto> scriptAddDtos)
+        [HttpPost("AddScripts"), AllowAnonymous]
+        public async Task<IActionResult> AddScripts([FromBody] ICollection<ScriptAddDto> scriptAddDtos)
         {
             Console.WriteLine("Hello : ");
-            await _drugService.AddScripts(scriptAddDtos);
-            return Ok("Items Added Succesfuly");
+            var count = await _drugService.AddScripts(scriptAddDtos);
+            return Ok($"{count} Items Added Successfully");
         }
 
         [HttpGet("AddMediCare"), AllowAnonymous]
@@ -310,6 +310,12 @@ namespace SearchTool_ServerSide.Controllers
         public async Task<IActionResult> ClearClassNames()
         {
             var result = await _drugService.ClearClassNames();
+            return Ok(result);
+        }
+        [HttpGet("CleanAndMergeClasses"), AllowAnonymous]
+        public async Task<IActionResult> CleanAndMergeClasses()
+        {
+            var result = await _drugService.CleanAndMergeClasses();
             return Ok(result);
         }
         

@@ -13,15 +13,13 @@ namespace SearchTool_ServerSide.Dtos.ScritpsDto
         public string Insurance { get; set; }
         public string PF { get; set; }
         public string Prescriber { get; set; }
-        public string Quantity { get; set; }
+        public string Quantity { get; set; }  // Changed to string to match CSV field type
         public decimal AcquisitionCost { get; set; }
         public decimal Discount { get; set; }
         public decimal InsurancePayment { get; set; }
         public decimal PatientPayment { get; set; }
         public string Branch { get; set; }
         public string NDCCode { get; set; }
-        
-
+        public int RemainingStock { get; set; } = 0; // Added to match original model
     }
-  
 }
