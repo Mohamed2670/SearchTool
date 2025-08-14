@@ -131,9 +131,54 @@ namespace SearchTool_ServerSide.Data
         public DbSet<FeedbackFormEntry> FeedbackForms { get; set; }
         public DbSet<SectionEntry> Sections { get; set; }
         public DbSet<QuestionEntry> Questions { get; set; }
+        public DbSet<InsuranceStatus> InsuranceStatuses { get; set; }
+        public DbSet<Report> Reports { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<InsuranceStatus>(b =>
+      {
+          // NEW: composite PK
+          b.HasKey(i => new { i.SourceDrugNDC, i.TargetDrugNDC, i.InsuranceRxId });
+
+          // keep your old relationships:
+          b.HasOne(i => i.SourceDrug)
+              .WithMany()
+              .HasForeignKey(i => i.SourceDrugNDC)
+              .HasPrincipalKey(d => d.NDC)
+              .OnDelete(DeleteBehavior.Restrict);
+
+          b.HasOne(i => i.TargetDrug)
+              .WithMany()
+              .HasForeignKey(i => i.TargetDrugNDC)
+              .HasPrincipalKey(d => d.NDC)
+              .OnDelete(DeleteBehavior.Restrict);
+
+          b.HasOne(i => i.InsuranceRx)
+              .WithMany()
+              .HasForeignKey(i => i.InsuranceRxId)
+              // Consider Restrict/NoAction to avoid accidental cascades;
+              // keep Cascade if you're sure it's desired.
+              .OnDelete(DeleteBehavior.Restrict);
+
+          // NEW: Reports relationship
+          b.HasMany(i => i.Reports)
+              .WithOne(r => r.InsuranceStatus)
+              .HasForeignKey(r => new { r.SourceDrugNDC, r.TargetDrugNDC, r.InsuranceRxId })
+              .OnDelete(DeleteBehavior.Cascade);
+      });
+            modelBuilder.Entity<Report>(b =>
+         {
+             b.HasKey(r => r.Id);
+
+             b.HasIndex(r => new { r.InsuranceRxId, r.SourceDrugNDC, r.TargetDrugNDC, r.StatusDate });
+
+             b.HasOne(r => r.User)
+                 .WithMany()
+                 .HasForeignKey(r => r.UserEmail)
+                 .HasPrincipalKey(u => u.Email)
+                 .OnDelete(DeleteBehavior.SetNull);
+         });
             modelBuilder.Entity<SearchDrugDetailsLogs>(entity =>
             {
                 entity.HasKey(e => new { e.UserEmail, e.NDC });

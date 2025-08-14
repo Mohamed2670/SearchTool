@@ -1,13 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SearchTool_ServerSide.Authentication;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Services;
 
 namespace SearchTool_ServerSide.Controllers
 {
     [ApiController]
-    [Route("Insurance"),Authorize(Policy = "Pharmacist")]
-    public class InsuranceController(InsuranceService _insuranceService) : ControllerBase
+    [Route("Insurance"), Authorize(Policy = "Pharmacist")]
+    public class InsuranceController(InsuranceService _insuranceService, UserAccessToken userAccessToken) : ControllerBase
     {
         [HttpGet("GetInsuranceDetails")]
         public async Task<IActionResult> GetInsuranceDetails([FromQuery] int id)
@@ -63,5 +64,27 @@ namespace SearchTool_ServerSide.Controllers
             var items = await _insuranceService.GetAllPCNsByBINId(id);
             return Ok(items);
         }
+        [HttpPost("ReportStatus")]
+        public async Task<IActionResult> ReportStatus([FromBody] ReportStatusRequest request)
+        {
+            var user = userAccessToken.tokenData();
+            await _insuranceService.ReportStatus(request, user.Email);
+            return Ok("Report submitted successfully.");
+        }
+        [HttpGet("GetReportsAsyncByKey"),AllowAnonymous]
+        public async Task<IActionResult> GetReportsAsyncByKey([FromQuery] string sourceDrugNDC, [FromQuery] string targetDrugNDC, [FromQuery] int insuranceRxId)
+        {
+            var items = await _insuranceService.GetReportsAsyncByKey(sourceDrugNDC, targetDrugNDC, insuranceRxId);
+            return Ok(items);
+        }
+    }
+
+    public class ReportStatusRequest
+    {
+        public string SourceDrugNDC { get; set; }
+        public string TargetDrugNDC { get; set; }
+        public int InsuranceRxId { get; set; }
+        public string Status { get; set; } = "Approved";
+        
     }
 }

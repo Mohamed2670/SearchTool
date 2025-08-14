@@ -112,9 +112,9 @@ namespace SearchTool_ServerSide.Services
             return items;
         }
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classId,string sourceDrugNDC)
         {
-            var items = await _drugRepository.GetAllDrugs(classId);
+            var items = await _drugRepository.GetAllDrugs(classId, sourceDrugNDC);
             return items;
         }
 

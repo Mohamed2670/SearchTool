@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SearchTool_ServerSide.Data;
@@ -11,9 +12,11 @@ using SearchTool_ServerSide.Data;
 namespace SearchTool_ServerSide.Migrations
 {
     [DbContext(typeof(SearchToolDBContext))]
-    partial class SearchToolDBContextModelSnapshot : ModelSnapshot
+    [Migration("20250806222301_InsuranceStat")]
+    partial class InsuranceStat
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -563,11 +566,22 @@ namespace SearchTool_ServerSide.Migrations
                     b.Property<int>("InsuranceRxId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ApprovedStatus")
+                    b.Property<string>("AdditionalInfo")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PriorAuthorizationStatus")
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StatusDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StatusDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserEmail")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -576,6 +590,8 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasIndex("InsuranceRxId");
 
                     b.HasIndex("TargetDrugNDC");
+
+                    b.HasIndex("UserEmail");
 
                     b.ToTable("InsuranceStatuses");
                 });
@@ -777,55 +793,6 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasIndex("SectionEntryId");
 
                     b.ToTable("Questions");
-                });
-
-            modelBuilder.Entity("SearchTool_ServerSide.Models.Report", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AdditionalInfo")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("InsuranceRxId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SourceDrugNDC")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("StatusDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("StatusDescription")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetDrugNDC")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserEmail")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserEmail");
-
-                    b.HasIndex("SourceDrugNDC", "TargetDrugNDC", "InsuranceRxId");
-
-                    b.HasIndex("InsuranceRxId", "SourceDrugNDC", "TargetDrugNDC", "StatusDate");
-
-                    b.ToTable("Reports");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
@@ -1254,7 +1221,7 @@ namespace SearchTool_ServerSide.Migrations
                     b.HasOne("SearchTool_ServerSide.Models.InsuranceRx", "InsuranceRx")
                         .WithMany()
                         .HasForeignKey("InsuranceRxId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("SearchTool_ServerSide.Models.Drug", "SourceDrug")
@@ -1271,11 +1238,20 @@ namespace SearchTool_ServerSide.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SearchTool_ServerSide.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserEmail")
+                        .HasPrincipalKey("Email")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .IsRequired();
+
                     b.Navigation("InsuranceRx");
 
                     b.Navigation("SourceDrug");
 
                     b.Navigation("TargetDrug");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.Log", b =>
@@ -1340,26 +1316,6 @@ namespace SearchTool_ServerSide.Migrations
                         .IsRequired();
 
                     b.Navigation("Section");
-                });
-
-            modelBuilder.Entity("SearchTool_ServerSide.Models.Report", b =>
-                {
-                    b.HasOne("SearchTool_ServerSide.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserEmail")
-                        .HasPrincipalKey("Email")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
-
-                    b.HasOne("SearchTool_ServerSide.Models.InsuranceStatus", "InsuranceStatus")
-                        .WithMany("Reports")
-                        .HasForeignKey("SourceDrugNDC", "TargetDrugNDC", "InsuranceRxId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InsuranceStatus");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.ScriptItem", b =>
@@ -1537,11 +1493,6 @@ namespace SearchTool_ServerSide.Migrations
             modelBuilder.Entity("SearchTool_ServerSide.Models.InsurancePCN", b =>
                 {
                     b.Navigation("InsuranceRxs");
-                });
-
-            modelBuilder.Entity("SearchTool_ServerSide.Models.InsuranceStatus", b =>
-                {
-                    b.Navigation("Reports");
                 });
 
             modelBuilder.Entity("SearchTool_ServerSide.Models.MainCompany", b =>

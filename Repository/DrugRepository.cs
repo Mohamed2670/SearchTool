@@ -1206,7 +1206,7 @@ namespace SearchTool_ServerSide.Repository
 
                 if (scriptItemDic.TryGetValue(siKey2, out var existingSI))
                 {
-                    continue; 
+                    continue;
                 }
                 else
                 {
@@ -1865,46 +1865,56 @@ namespace SearchTool_ServerSide.Repository
         }
 
 
-        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classInfoId)
+        internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classInfoId, string sourceDrugNDC)
         {
-            // Step 1: Get all drugs in that ClassInfo (via DrugClasses table)
             var query =
-                        from dc in _context.DrugClasses
-                        where dc.ClassId == classInfoId
-                        join d in _context.Drugs on dc.DrugId equals d.Id
-                        join ci in _context.ClassInfos on dc.ClassId equals ci.Id
+                from dc in _context.DrugClasses
+                where dc.ClassId == classInfoId
+                join d in _context.Drugs on dc.DrugId equals d.Id
+                join ci in _context.ClassInfos on dc.ClassId equals ci.Id
+                join diGroup in _context.DrugInsurances on dc.DrugId equals diGroup.DrugId into diGroup
+                from di in diGroup.DefaultIfEmpty()
 
-                        join diGroup in _context.DrugInsurances
-                            on dc.DrugId equals diGroup.DrugId into diGroup
-                        from di in diGroup.DefaultIfEmpty() // now di can be null
+                join dbGroup in _context.DrugBranches
+                    on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                    equals new { dbGroup.DrugNDC, dbGroup.BranchId } into dbGroup
+                from db in dbGroup.DefaultIfEmpty()
 
-                        join dbGroup in _context.DrugBranches
-                            on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
-                            equals new { dbGroup.DrugNDC, dbGroup.BranchId } into dbGroup
-                        from db in dbGroup.DefaultIfEmpty()
+                    // NEW: correlated subquery to fetch the latest report for this (source, target, insurance)
+                let latestReport =
+                    di == null ? null :
+                    _context.Reports
+                    .Include(r => r.InsuranceStatus)
+                        .Where(r =>
+                            r.SourceDrugNDC == sourceDrugNDC &&
+                            r.TargetDrugNDC == di.NDCCode &&
+                            r.InsuranceRxId == di.InsuranceId)
+                        .OrderByDescending(r => r.StatusDate)
+                        .ThenByDescending(r => r.Id)          // tie-breaker
+                        .FirstOrDefault()
 
-                        select new
-                        {
-                            Drug = d,
-                            DrugBranch = db,
-                            DrugClass = dc,
-                            ClassInfo = ci,
-                            DrugInsurance = di
-                        };
+                select new
+                {
+                    Drug = d,
+                    DrugBranch = db,
+                    DrugClass = dc,
+                    ClassInfo = ci,
+                    DrugInsurance = di,
+                    LatestReport = latestReport             // << use this instead of InsuranceStatus
+                };
 
+            var list = await query.AsNoTracking().ToListAsync();
 
-            var list = await query.ToListAsync();
-
-            var branchDict = await _context.Branches.ToDictionaryAsync(x => x.Id);
-
+            var branchDict = await _context.Branches.AsNoTracking().ToDictionaryAsync(x => x.Id);
             var insuranceRxDict = await _context.InsuranceRxes
-                .Include(ir => ir.InsurancePCN)
-                    .ThenInclude(ipcn => ipcn.Insurance)
+                .Include(ir => ir.InsurancePCN).ThenInclude(ipcn => ipcn.Insurance)
+                .AsNoTracking()
                 .ToDictionaryAsync(x => x.Id);
 
             var result = list.Select(item =>
             {
                 var di = item.DrugInsurance;
+                var latest = item.LatestReport;
 
                 var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
                 {
@@ -1939,6 +1949,7 @@ namespace SearchTool_ServerSide.Repository
                 dto.Stock = item.DrugBranch?.Stock ?? 0;
                 dto.ScriptCode = di?.ScriptCode;
 
+                // Null checks for insuranceRxDict and di
                 if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
                 {
                     dto.insuranceName = insuranceRx.RxGroup;
@@ -1949,10 +1960,20 @@ namespace SearchTool_ServerSide.Repository
                     dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
                     dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
                     dto.rxgroupId = insuranceRx.Id;
+
+                    // Null checks for latest and latest.InsuranceStatus
+                    dto.Status = latest?.Status ?? "Not Available";
+                    dto.StatusDescription = latest?.StatusDescription ?? "No additional information";
+                    dto.AdditionalInfo = latest?.AdditionalInfo;
+                    dto.StatusDate = latest?.StatusDate;
+                    dto.SubmitedUser = latest?.UserEmail ?? "";
+                    dto.ApprovedStatus = latest?.InsuranceStatus?.ApprovedStatus ?? "NA";
+                    dto.PriorAuthorizationStatus = latest?.InsuranceStatus?.PriorAuthorizationStatus ?? "NA";
                 }
 
                 if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
                     dto.branchName = branch.Name;
+
                 if (dto.Quantity == 0)
                     dto.Quantity = 1;
 
@@ -1961,7 +1982,6 @@ namespace SearchTool_ServerSide.Repository
 
             return result;
         }
-
 
 
         internal async Task<Drug> GetDrugById(int id)

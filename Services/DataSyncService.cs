@@ -56,7 +56,6 @@ public class DataSyncService
         public int LogId { get; set; } = 0;
         public int UserId { get; set; }
         public string Action { get; set; }
-
         public int User_OriginalId { get; set; }
         public string Email { get; set; }
         public string ShortName { get; set; }

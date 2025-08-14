@@ -43,6 +43,12 @@ namespace SearchTool_ServerSide.Dtos.DrugDtos
         public string? Ingrdient { get; set; }
         public string? StrengthUnit { get; set; }
         public string? Type { get; set; }
-
+        public string? Status { get; internal set; }
+        public string? StatusDescription { get; internal set; }
+        public string? AdditionalInfo { get; internal set; }
+        public DateTime? StatusDate { get; internal set; }
+        public string ApprovedStatus { get; set; }
+        public string PriorAuthorizationStatus { get; set; }
+        public string SubmitedUser { get; internal set; }
     }
 }

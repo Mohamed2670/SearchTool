@@ -1,3 +1,4 @@
+using SearchTool_ServerSide.Controllers;
 using SearchTool_ServerSide.Dtos.InsuranceDtos.cs;
 using SearchTool_ServerSide.Models;
 using SearchTool_ServerSide.Repository;
@@ -53,6 +54,15 @@ namespace SearchTool_ServerSide.Services
         {
             var items = await _insuranceRepository.GetAllPCNsByBINId(id);
             return items;
+        }
+
+        internal async Task ReportStatus(ReportStatusRequest request, string userEmail)
+        {
+            await _insuranceRepository.ReportStatus(request, userEmail);
+        }
+        internal async Task<IEnumerable<Report>> GetReportsAsyncByKey(string sourceDrugNDC, string targetDrugNDC, int insuranceRxId)
+        {
+            return await _insuranceRepository.GetReportsAsyncByKey(sourceDrugNDC, targetDrugNDC, insuranceRxId);
         }
     }
 }

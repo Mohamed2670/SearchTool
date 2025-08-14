@@ -127,9 +127,9 @@ namespace SearchTool_ServerSide.Controllers
         }
 
         [HttpGet("GetAllDrugs")]
-        public async Task<IActionResult> GetAllDrugs([FromQuery] int classId)
+        public async Task<IActionResult> GetAllDrugs([FromQuery] int classId,[FromQuery] string sourceDrugNDC)
         {
-            var items = await _drugService.GetAllDrugs(classId);
+            var items = await _drugService.GetAllDrugs(classId, sourceDrugNDC);
             return Ok(items);
         }
         [HttpGet("GetDrugById")]
