@@ -183,6 +183,7 @@ namespace SearchTool_ServerSide.Repository
             var ret = await _context.Insurances.Where(x => items.Contains(x.Id)).Select(i => i.Name).ToListAsync();
             return ret;
         }
+
         public async Task SaveData(string filePath = "drug_enriched_with_group.csv")
         {
             var drugs = LoadDrugsFromCsv(filePath);
@@ -249,7 +250,8 @@ namespace SearchTool_ServerSide.Repository
                     ("ClassV2","est 25% different in strength"),
                     ("ClassV3","Group_By_Class_Standardized"),
                     ("ClassV4","Cleaned with epc Names"),
-                    ("ClassV5","EPC + MOA + Route")
+                    ("ClassV5","EPC + MOA + Route"),
+                    ("ClassV6","EPC + MOA like if a =>{x,y} ,b=>{y},c=>{x} then a can get y and c and b can get only and z can get a only it's only depend on the source drug search")
                 };
             foreach (var classType in addedclassTypes)
             {
@@ -270,7 +272,7 @@ namespace SearchTool_ServerSide.Repository
 
                 newClassTypes.Clear();
             }
-            var classTypeList = await _context.ClassTypes.ToListAsync();
+            classTypes = await context.ClassTypes.ToDictionaryAsync(di => di.Name, di => di);
             foreach (var record in records)
             {
                 var tempClassType = new List<(string, string)>
@@ -279,7 +281,8 @@ namespace SearchTool_ServerSide.Repository
                     (record.ClassV2,"ClassV2"),
                     (record.ClassV3,"ClassV3"),
                     (record.ClassV4,"ClassV4"),
-                    (record.ClassV5,"ClassV5")
+                    (record.ClassV5,"ClassV5"),
+                    (record.PHARM_CLASSES,"ClassV6")
                 };
 
 
@@ -288,6 +291,25 @@ namespace SearchTool_ServerSide.Repository
                     var type = tempClassType[i].Item2;
                     if (classTypes.TryGetValue(type, out var classType))
                     {
+                        if (type == "ClassV6")
+                        {
+                            var EPCMOAList = tempClassType[i].Item1.Trim().Split(",");
+                            foreach (var item in EPCMOAList)
+                            {
+                                var className6 = item.Trim();
+                                if (string.IsNullOrWhiteSpace(className6))
+                                {
+                                    continue;
+                                }
+                                var classInfoKey6 = (className6, classType.Id);
+                                if (!classInfos.TryGetValue(classInfoKey6, out var classInfo6))
+                                {
+                                    classInfo6 = new ClassInfo { Name = className6, ClassTypeId = classType.Id };
+                                    newClassInfos.Add(classInfo6);
+                                    classInfos[classInfoKey6] = classInfo6;
+                                }
+                            }
+                        }
                         var className = tempClassType[i].Item1;
                         if (string.IsNullOrWhiteSpace(className))
                         {
@@ -381,7 +403,8 @@ namespace SearchTool_ServerSide.Repository
                     (record.ClassV2,"ClassV2"),
                     (record.ClassV3,"ClassV3"),
                     (record.ClassV4,"ClassV4"),
-                    (record.ClassV5,"ClassV5")
+                    (record.ClassV5,"ClassV5"),
+                    (record.PHARM_CLASSES,"ClassV6")
                 };
 
                 string tempNdc = NormalizeNdcTo11Digits(record.NDC);
@@ -393,7 +416,32 @@ namespace SearchTool_ServerSide.Repository
                         var type = tempClassType[i].Item2;
                         if (classTypes.TryGetValue(type, out var classType))
                         {
+                            if (classType.Name == "ClassV6")
+                            {
+                                var EPCMOAList = tempClassType[i].Item1.Trim().Split(",");
+                                foreach (var epcmoa in EPCMOAList)
+                                {
+                                    var classInfoKey6 = (epcmoa.Trim(), classType.Id);
+                                    if (classInfos.ContainsKey(classInfoKey6))
+                                    {
+                                        var classInfo6 = classInfos[classInfoKey6];
+                                        if (!drugClasses.ContainsKey((classInfo6.Id, drug.Id)))
+                                        {
+                                            var newDrugClass = new DrugClass
+                                            {
+                                                ClassId = classInfo6.Id,
+                                                DrugId = drug.Id
+                                            };
+                                            drugClasses[(classInfo6.Id, drug.Id)] = newDrugClass;
+                                            newDrugClasses.Add(newDrugClass);
+                                        }
+                                    }
+                                }
+                            }
+
+
                             var className = tempClassType[i].Item1;
+
                             var classInfoKey = (className, classType.Id);
 
                             if (classInfos.TryGetValue(classInfoKey, out var classInfo))
@@ -1685,60 +1733,60 @@ namespace SearchTool_ServerSide.Repository
             // PHASE 4: Process ScriptItems
             // ========================================================
             // Build a temporary dictionary keyed by (ScriptId, DrugId)
-            var tempScriptItems = new Dictionary<(int scriptId, int drugId), ScriptItem>();
-            foreach (var record in processedRecords)
-            {
-                record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
-                DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture)
-                                                .ToUniversalTime();
+            // var tempScriptItems = new Dictionary<(int scriptId, int drugId), ScriptItem>();
+            // foreach (var record in processedRecords)
+            // {
+            //     record.NDCCode = NormalizeNdcTo11Digits(record.NDCCode);
+            //     DateTime recordDate = DateTime.ParseExact(record.Date, "MM-dd-yy", CultureInfo.InvariantCulture)
+            //                                     .ToUniversalTime();
 
-                if (!insuranceRxDict.TryGetValue(record.RxGroup, out var insurance2))
-                    continue;
-                if (!drugDict.TryGetValue(record.NDCCode, out var drug2))
-                    continue;
-                if (!scriptDict.TryGetValue(record.Script, out var script))
-                    continue;
-                decimal realQTY = 1;
-                record.RemainingStock = new Random().Next(10, 101);
-                if (record.Quantity != "tableCell29")
-                {
-                    realQTY = decimal.Parse(record.Quantity);
-                }
-                var siKey = (script.Id, drug2.Id);
-                if (tempScriptItems.TryGetValue(siKey, out var existingSI))
-                {
-                    if (script.Date <= recordDate)
-                    {
-                        existingSI.AcquisitionCost = record.AcquisitionCost;
-                        existingSI.Discount = record.Discount;
-                        existingSI.InsurancePayment = record.InsurancePayment;
-                        existingSI.PatientPayment = record.PatientPayment;
-                    }
-                }
-                else
-                {
-                    if (!userDict.TryGetValue(record.Prescriber, out var prescriber))
-                        continue;
-                    var newSI = new ScriptItem
-                    {
-                        ScriptId = script.Id,
-                        DrugId = drug2.Id,
-                        InsuranceId = insurance2.Id,
-                        RxNumber = record.RxNumber,
-                        UserEmail = prescriber.Email,
-                        PF = record.PF,
-                        Quantity = realQTY,
-                        RemainingStock = record.RemainingStock,
-                        AcquisitionCost = record.AcquisitionCost,
-                        Discount = record.Discount,
-                        InsurancePayment = record.InsurancePayment,
-                        PatientPayment = record.PatientPayment,
-                        NDCCode = record.NDCCode
-                    };
-                    tempScriptItems.Add(siKey, newSI);
-                }
-            }
-            _context.ScriptItems.AddRange(tempScriptItems.Values);
+            //     if (!insuranceRxDict.TryGetValue(record.RxGroup, out var insurance2))
+            //         continue;
+            //     if (!drugDict.TryGetValue(record.NDCCode, out var drug2))
+            //         continue;
+            //     if (!scriptDict.TryGetValue(record.Script, out var script))
+            //         continue;
+            //     decimal realQTY = 1;
+            //     record.RemainingStock = new Random().Next(10, 101);
+            //     if (record.Quantity != "tableCell29")
+            //     {
+            //         realQTY = decimal.Parse(record.Quantity);
+            //     }
+            //     var siKey = (script.Id, drug2.Id);
+            //     if (tempScriptItems.TryGetValue(siKey, out var existingSI))
+            //     {
+            //         if (script.Date <= recordDate)
+            //         {
+            //             existingSI.AcquisitionCost = record.AcquisitionCost;
+            //             existingSI.Discount = record.Discount;
+            //             existingSI.InsurancePayment = record.InsurancePayment;
+            //             existingSI.PatientPayment = record.PatientPayment;
+            //         }
+            //     }
+            //     else
+            //     {
+            //         if (!userDict.TryGetValue(record.Prescriber, out var prescriber))
+            //             continue;
+            //         var newSI = new ScriptItem
+            //         {
+            //             ScriptId = script.Id,
+            //             DrugId = drug2.Id,
+            //             InsuranceId = insurance2.Id,
+            //             RxNumber = record.RxNumber,
+            //             UserEmail = prescriber.Email,
+            //             PF = record.PF,
+            //             Quantity = realQTY,
+            //             RemainingStock = record.RemainingStock,
+            //             AcquisitionCost = record.AcquisitionCost,
+            //             Discount = record.Discount,
+            //             InsurancePayment = record.InsurancePayment,
+            //             PatientPayment = record.PatientPayment,
+            //             NDCCode = record.NDCCode
+            //         };
+            //         tempScriptItems.Add(siKey, newSI);
+            //     }
+            // }
+            // _context.ScriptItems.AddRange(tempScriptItems.Values);
             await _context.SaveChangesAsync();
         }
 
@@ -1864,9 +1912,163 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
+        private async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV6(string sourceDrugNDC)
+        {
+            // 1) Find the source drug and all class IDs it belongs to
+            var sourceDrug = await _context.Drugs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.NDC == sourceDrugNDC);
+
+            if (sourceDrug == null)
+                return new List<DrugsAlternativesReadDto>();
+
+            var sourceClassIds = await _context.DrugClasses
+                .AsNoTracking()
+                .Where(dc => dc.DrugId == sourceDrug.Id)
+                .Select(dc => dc.ClassId)
+                .Distinct()
+                .ToListAsync();
+
+            if (sourceClassIds.Count == 0)
+                return new List<DrugsAlternativesReadDto>();
+
+            // 2) Query all drugs that are in ANY of those classes (alternatives)
+            var query =
+                from dc in _context.DrugClasses
+                where sourceClassIds.Contains(dc.ClassId)
+                join d in _context.Drugs on dc.DrugId equals d.Id
+                // exclude the source drug row itself from alternatives
+                where d.NDC != sourceDrugNDC
+                join ci in _context.ClassInfos on dc.ClassId equals ci.Id
+
+                // LEFT JOIN DrugInsurances
+                join diGroup in _context.DrugInsurances on dc.DrugId equals diGroup.DrugId into diGroup
+                from di in diGroup.DefaultIfEmpty()
+
+                    // LEFT JOIN DrugBranches keyed by (DrugNDC, BranchId or default 1)
+                join dbGroup in _context.DrugBranches
+                    on new { DrugNDC = d.NDC, BranchId = di != null ? di.BranchId : 1 }
+                    equals new { dbGroup.DrugNDC, dbGroup.BranchId } into dbGroup
+                from db in dbGroup.DefaultIfEmpty()
+
+                    // Correlated subquery: latest report for (source, target, insurance)
+                let latestReport =
+                    di == null ? null :
+                    _context.Reports
+                        .Include(r => r.InsuranceStatus)
+                        .Where(r =>
+                            r.SourceDrugNDC == sourceDrugNDC &&
+                            r.TargetDrugNDC == di.NDCCode &&
+                            r.InsuranceRxId == di.InsuranceId)
+                        .OrderByDescending(r => r.StatusDate)
+                        .ThenByDescending(r => r.Id) // tie-breaker
+                        .FirstOrDefault()
+
+                select new
+                {
+                    Drug = d,
+                    DrugBranch = db,
+                    DrugClass = dc,
+                    ClassInfo = ci,
+                    DrugInsurance = di,
+                    LatestReport = latestReport
+                };
+
+            var list = await query.AsNoTracking().ToListAsync();
+
+            // 3) Lookup dictionaries
+            var branchDict = await _context.Branches.AsNoTracking()
+                .ToDictionaryAsync(x => x.Id);
+
+            var insuranceRxDict = await _context.InsuranceRxes
+                .Include(ir => ir.InsurancePCN).ThenInclude(ipcn => ipcn.Insurance)
+                .AsNoTracking()
+                .ToDictionaryAsync(x => x.Id);
+
+            // 4) Map to DTOs
+            var result = list.Select(item =>
+            {
+                var di = item.DrugInsurance;
+                var latest = item.LatestReport;
+
+                var dto = _mapper.Map<DrugsAlternativesReadDto>(di ?? new DrugInsurance
+                {
+                    DrugId = item.Drug.Id,
+                    NDCCode = item.Drug.NDC,
+                    Net = 0,
+                    Date = DateTime.UtcNow,
+                    Quantity = 1,
+                    AcquisitionCost = 0,
+                    Discount = 0,
+                    InsurancePayment = 0,
+                    PatientPayment = 0,
+                    BranchId = 1,
+                    InsuranceId = 0,
+                    Drug = item.Drug
+                });
+
+                dto.DrugName = item.Drug.Name;
+                dto.NDCCode = item.Drug.NDC;
+                dto.DrugClassId = item.DrugClass.Id;   // which class this alternative came from
+                dto.DrugClass = item.ClassInfo.Name;
+                dto.Quantity = di?.Quantity ?? 1;
+                dto.ApplicationNumber = item.Drug.ApplicationNumber;
+                dto.ApplicationType = item.Drug.ApplicationType;
+                dto.Route = item.Drug.Route;
+                dto.Strength = item.Drug.Strength;
+                dto.Form = item.Drug.Form;
+                dto.Ingrdient = item.Drug.Ingrdient;
+                dto.StrengthUnit = item.Drug.StrengthUnit;
+                dto.Type = item.Drug.Type;
+                dto.TECode = item.Drug.TECode;
+                dto.Stock = item.DrugBranch?.Stock ?? 0;
+                dto.ScriptCode = di?.ScriptCode;
+
+                // Insurance details (if any)
+                if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
+                {
+                    dto.insuranceName = insuranceRx.RxGroup;
+                    dto.pcn = insuranceRx.InsurancePCN?.PCN;
+                    dto.bin = insuranceRx.InsurancePCN?.Insurance?.Bin;
+                    dto.rxgroup = insuranceRx.RxGroup;
+                    dto.BinFullName = insuranceRx.InsurancePCN?.Insurance?.Name;
+                    dto.binId = insuranceRx.InsurancePCN?.Insurance?.Id ?? 0;
+                    dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
+                    dto.rxgroupId = insuranceRx.Id;
+
+                    // Latest report snapshot
+                    dto.Status = latest?.Status ?? "Not Available";
+                    dto.StatusDescription = latest?.StatusDescription ?? "No additional information";
+                    dto.AdditionalInfo = latest?.AdditionalInfo;
+                    dto.StatusDate = latest?.StatusDate;
+                    dto.SubmitedUser = latest?.UserEmail ?? "";
+                    dto.ApprovedStatus = latest?.InsuranceStatus?.ApprovedStatus ?? "NA";
+                    dto.PriorAuthorizationStatus = latest?.InsuranceStatus?.PriorAuthorizationStatus ?? "NA";
+                }
+
+                if (di != null && branchDict.TryGetValue(di.BranchId, out var branch))
+                    dto.branchName = branch.Name;
+
+                if (dto.Quantity == 0)
+                    dto.Quantity = 1;
+
+                return dto;
+            })
+            // Optional: de-duplicate final list by (NDC, InsuranceId) if the same alternative shows up via multiple classes
+            // .GroupBy(x => new { x.NDCCode, x.rxgroupId })  // or include bin/pcn if needed
+            // .Select(g => g.First())
+            .ToList();
+
+            return result;
+        }
 
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classInfoId, string sourceDrugNDC)
         {
+            var tempCLass = await _context.ClassInfos.FirstOrDefaultAsync(x => x.Id == classInfoId);
+            if (tempCLass.ClassTypeId == 7)
+            {
+                return await GetAllDrugsV6(sourceDrugNDC);
+            }
             var query =
                 from dc in _context.DrugClasses
                 where dc.ClassId == classInfoId
@@ -2123,7 +2325,7 @@ namespace SearchTool_ServerSide.Repository
             public string? PHARM_CLASSES { get; set; }
         }
 
-        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, string classVersion = "ClassV1", string matchOn = "BIN")
+        public async Task<ICollection<AuditReadDto>> GetAllLatestScriptsPaginated(int pageNumber, int pageSize, string classVersion = "ClassV6", string matchOn = "BIN")
         {
             // Use classVersion as part of the cache key
             string cacheKey = $"AllLatestScripts_{classVersion}_{matchOn}";
@@ -2154,7 +2356,8 @@ namespace SearchTool_ServerSide.Repository
 
         private async Task<List<AuditReadDto>> GetAuditDtosWithBestBeforeOrPrevMonthAsync(string classTypeName, string matchOn)
         {
-            // Step 1️⃣ Load all ScriptItems + navigation
+            var isClassV6 = string.Equals(classTypeName, "ClassV6", StringComparison.OrdinalIgnoreCase);
+
             var scriptItems = await _context.ScriptItems
                 .AsNoTracking()
                 .Include(si => si.Script).ThenInclude(s => s.Branch)
@@ -2168,7 +2371,7 @@ namespace SearchTool_ServerSide.Repository
 
             if (!scriptItems.Any()) return new();
 
-            // Step 2️⃣ Load all ClassInsurances with full navigation to BIN
+            // Load all ClassInsurances (+ BIN/PCN navigation)
             var classInsurances = await _context.ClassInsurances
                 .AsNoTracking()
                 .Include(ci => ci.Drug)
@@ -2177,7 +2380,7 @@ namespace SearchTool_ServerSide.Repository
                         .ThenInclude(pcn => pcn.Insurance)
                 .ToListAsync();
 
-            // Step 3️⃣ Group ClassInsurances by (BranchId, BIN, ClassInfoId)
+            // Group by (BranchId, <match>, ClassInfoId)
             var ciGroups = classInsurances
                 .Where(ci => ci.Insurance?.InsurancePCN?.Insurance?.Bin != null)
                 .GroupBy(ci =>
@@ -2200,14 +2403,10 @@ namespace SearchTool_ServerSide.Repository
                 .Where(g => g.Key.Match != null)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-
-            // Step 4️⃣ Build ScriptItem RemainingStock dictionary
+            // RemainingStock dictionary
             var stockDict = scriptItems
                 .GroupBy(si => (si.Script.ScriptCode, si.DrugId))
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.First().RemainingStock
-                );
+                .ToDictionary(g => g.Key, g => g.First().RemainingStock);
 
             var auditDtos = new List<AuditReadDto>();
 
@@ -2216,9 +2415,15 @@ namespace SearchTool_ServerSide.Repository
                 var scriptDate = si.Script.Date.ToUniversalTime();
                 var prevMonth = StartOfMonth(scriptDate).AddMonths(-1);
 
-                var drugClassInfoId = si.Drug.DrugClasses
-                    .First(dc => dc.ClassInfo.ClassType.Name == classTypeName)
-                    .ClassId;
+                // All ClassInfoIds for this drug under the given classType
+                var classInfoIdsForDrug = si.Drug.DrugClasses
+                    .Where(dc => dc.ClassInfo.ClassType.Name == classTypeName)
+                    .Select(dc => dc.ClassId)
+                    .Distinct()
+                    .ToList();
+
+                // If you still want to show which class name we selected the drug from:
+                var firstMatchingClass = si.Drug.DrugClasses.First(dc => dc.ClassInfo.ClassType.Name == classTypeName);
 
                 string? matchValue = matchOn.ToUpper() switch
                 {
@@ -2227,34 +2432,65 @@ namespace SearchTool_ServerSide.Repository
                     "RX" => si.Insurance?.RxGroup,
                     _ => null
                 };
-
                 if (matchValue == null) continue;
-
-                var key = new
-                {
-                    si.Script.BranchId,
-                    Match = matchValue,
-                    ClassInfoId = drugClassInfoId
-                };
 
                 ClassInsurance? bestAlt = null;
 
-                if (ciGroups.TryGetValue(key, out var ciList))
+                if (isClassV6)
                 {
-                    // First try: previous month
-                    bestAlt = ciList
-                        .Where(ci => StartOfMonth(ci.Date) == prevMonth)
-                        .OrderByDescending(ci => ci.BestNet)
-                        .FirstOrDefault();
-
-                    // Fallback: most recent ≤ scriptDate
-                    if (bestAlt == null)
+                    // ✅ ClassV6: consider ALL classInfos for this drug, pick the single best by BestNet.
+                    // Build one combined candidate set across all matching ClassInfoIds.
+                    var candidates = new List<ClassInsurance>();
+                    foreach (var cid in classInfoIdsForDrug)
                     {
+                        var key = new { si.Script.BranchId, Match = matchValue, ClassInfoId = cid };
+                        if (ciGroups.TryGetValue(key, out var ciList) && ciList is not null)
+                            candidates.AddRange(ciList);
+                    }
+
+                    if (candidates.Count > 0)
+                    {
+                        // Prefer previous month, choose highest BestNet there; else most recent ≤ script date, highest BestNet.
+                        bestAlt =
+                            candidates.Where(ci => StartOfMonth(ci.Date) == prevMonth)
+                                      .OrderByDescending(ci => ci.BestNet)
+                                      .ThenByDescending(ci => ci.Date)
+                                      .FirstOrDefault()
+                            ?? candidates.Where(ci => ci.Date <= scriptDate)
+                                         .OrderByDescending(ci => ci.BestNet)
+                                         .ThenByDescending(ci => ci.Date)
+                                         .FirstOrDefault();
+                    }
+                }
+                else
+                {
+                    // Original behavior: use the first matching ClassInfoId for this drug
+                    var drugClassInfoId = firstMatchingClass.ClassId;
+
+                    var key = new
+                    {
+                        si.Script.BranchId,
+                        Match = matchValue,
+                        ClassInfoId = drugClassInfoId
+                    };
+
+                    if (ciGroups.TryGetValue(key, out var ciList))
+                    {
+                        // First try: previous month (highest BestNet)
                         bestAlt = ciList
-                            .Where(ci => ci.Date <= scriptDate)
-                            .OrderByDescending(ci => ci.Date)
-                            .ThenByDescending(ci => ci.BestNet)
+                            .Where(ci => StartOfMonth(ci.Date) == prevMonth)
+                            .OrderByDescending(ci => ci.BestNet)
                             .FirstOrDefault();
+
+                        // Fallback: most recent ≤ scriptDate, then BestNet
+                        if (bestAlt == null)
+                        {
+                            bestAlt = ciList
+                                .Where(ci => ci.Date <= scriptDate)
+                                .OrderByDescending(ci => ci.Date)
+                                .ThenByDescending(ci => ci.BestNet)
+                                .FirstOrDefault();
+                        }
                     }
                 }
 
@@ -2264,7 +2500,7 @@ namespace SearchTool_ServerSide.Repository
                     RemainingStock = si.RemainingStock,
                     ScriptCode = si.Script.ScriptCode,
                     RxNumber = si.RxNumber,
-                    User = si.UserEmail.Replace(".@pharmacy.com", ""),
+                    User = (si.UserEmail ?? "").Replace(".@pharmacy.com", ""),
                     Prescriber = si.Prescriber?.Name ?? "",
                     DrugName = si.Drug.Name,
                     DrugId = si.DrugId,
@@ -2273,7 +2509,7 @@ namespace SearchTool_ServerSide.Repository
                     BINName = si.Insurance?.InsurancePCN?.Insurance?.Name ?? "",
                     PCNName = si.Insurance?.InsurancePCN?.PCN ?? "",
                     RxGroupId = si.Insurance?.Id ?? 1,
-                    PcnId = si.Insurance.InsurancePCN?.Id ?? 1,
+                    PcnId = si.Insurance?.InsurancePCN?.Id ?? 1, // ✅ NRE-safe
                     BinId = si.Insurance?.InsurancePCN?.Insurance?.Id ?? 1,
                     InsuranceId = si.InsuranceId,
                     PF = si.PF,
@@ -2284,10 +2520,9 @@ namespace SearchTool_ServerSide.Repository
                     PatientPayment = si.PatientPayment,
                     NetProfit = si.NetProfit,
                     NDCCode = si.NDCCode,
-                    DrugClass = si.Drug.DrugClasses.First(dc => dc.ClassInfo.ClassType.Name == classTypeName).ClassInfo.Name,
+                    DrugClass = firstMatchingClass.ClassInfo.Name, // display a class name for context
                     BranchCode = si.Script.Branch.Code,
-                    NetProfitPerItem = si.NetProfit / si.Quantity,
-
+                    NetProfitPerItem = si.NetProfit / Math.Max(1, si.Quantity),
                 };
 
                 if (bestAlt != null)
@@ -2307,10 +2542,8 @@ namespace SearchTool_ServerSide.Repository
                     dto.HighestRxGroupId = bestAlt.InsuranceId;
                     dto.HighestPcnId = bestAlt.Insurance?.InsurancePCN?.Id ?? 1;
                     dto.HighestBinId = bestAlt.Insurance?.InsurancePCN?.Insurance?.Id ?? 1;
-                    stockDict.TryGetValue(
-                        (bestAlt.ScriptCode, bestAlt.DrugId),
-                        out int altRemainingStock);
 
+                    stockDict.TryGetValue((bestAlt.ScriptCode, bestAlt.DrugId), out int altRemainingStock);
                     dto.HighestRemainingStock = altRemainingStock;
                 }
 
@@ -2319,7 +2552,7 @@ namespace SearchTool_ServerSide.Repository
 
             return auditDtos;
         }
-        // Helper method
+
         private static DateTime StartOfMonth(DateTime dt)
         {
             dt = dt.ToUniversalTime();
