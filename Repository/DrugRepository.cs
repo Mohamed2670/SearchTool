@@ -27,6 +27,8 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SearchTool_ServerSide.Repository
 {
+    public record ClassRoute(string Route, string Kind);
+
     public class DrugRepository : GenericRepository<Drug>
     {
         private readonly SearchToolDBContext _context;
@@ -251,7 +253,12 @@ namespace SearchTool_ServerSide.Repository
                     ("ClassV3","Group_By_Class_Standardized"),
                     ("ClassV4","Cleaned with epc Names"),
                     ("ClassV5","EPC + MOA + Route"),
-                    ("ClassV6","EPC + MOA like if a =>{x,y} ,b=>{y},c=>{x} then a can get y and c and b can get only and z can get a only it's only depend on the source drug search")
+                    ("ClassV6","EPC + MOA like if a =>{x,y} ,b=>{y},c=>{x} then a can get y and c and b can get only and z can get a only it's only depend on the source drug search"),
+                    ("ClassV7","EPC + MOA + ROUTE"),
+                    ("ClassV8","EPC + MOA + ROUTE"),
+                    ("ClassV9","EPC + MOA + ROUTE or drug Class exact match"),
+
+
                 };
             foreach (var classType in addedclassTypes)
             {
@@ -282,9 +289,10 @@ namespace SearchTool_ServerSide.Repository
                     (record.ClassV3,"ClassV3"),
                     (record.ClassV4,"ClassV4"),
                     (record.ClassV5,"ClassV5"),
-                    (record.PHARM_CLASSES,"ClassV6")
+                    (record.PHARM_CLASSES,"ClassV6"),
+                    (record.PHARM_CLASSES,"ClassV8"),
+                    (record.PHARM_CLASSES,"ClassV9"),
                 };
-
 
                 for (int i = 0; i < tempClassType.Count; i++)
                 {
@@ -310,18 +318,254 @@ namespace SearchTool_ServerSide.Repository
                                 }
                             }
                         }
-                        var className = tempClassType[i].Item1;
-                        if (string.IsNullOrWhiteSpace(className))
+                        else if (type == "ClassV8")
                         {
-                            // Skip if className is null or empty
-                            continue;
+                            var raw = tempClassType[i].Item1 ?? string.Empty;
+                            var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                                             .Select(s => s.Trim())
+                                             .Where(s => !string.IsNullOrWhiteSpace(s))
+                                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                                             .ToList();
+                            foreach (var item in items)
+                            {
+                                var className7 = item.Trim();
+                                if (string.IsNullOrWhiteSpace(className7)) continue;
+
+                                var classInfoKey7 = (className7, classType.Id);
+                                if (!classInfos.TryGetValue(classInfoKey7, out var classInfo7))
+                                {
+                                    classInfo7 = new ClassInfo { Name = className7, ClassTypeId = classType.Id };
+                                    newClassInfos.Add(classInfo7);
+                                    classInfos[classInfoKey7] = classInfo7;
+                                }
+                            }
+                            var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MoA", "EPC" };
+                            var parsed = items.Select(s =>
+                                             {
+                                                 var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$"); // last [...] tag
+                                                 var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                                                 return new { Text = s, Type = t };
+                                             })
+                                             .Where(x => allowed.Contains(x.Type))
+                                             .ToList();
+                            var EPCMOAClassList = new List<(string Left, string Right)>();
+                            for (int a = 0; a < parsed.Count; a++)
+                            {
+                                for (int b = a + 1; b < parsed.Count; b++)
+                                {
+                                    var ta = parsed[a].Type;
+                                    var tb = parsed[b].Type;
+                                    if (ta.Equals(tb, StringComparison.OrdinalIgnoreCase)) continue;
+
+                                    // Canonicalize: MoA on left, EPC on right
+                                    var left = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[a].Text : parsed[b].Text;
+                                    var right = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[b].Text : parsed[a].Text;
+
+                                    EPCMOAClassList.Add((left, right));
+                                }
+                            }
+                            foreach (var item in EPCMOAClassList)
+                            {
+                                var className7 = $"{item.Left.Trim()}|{item.Right.Trim()}";
+                                if (string.IsNullOrWhiteSpace(className7))
+                                    continue;
+
+                                var classInfoKey7 = (className7, classType.Id);
+                                if (!classInfos.TryGetValue(classInfoKey7, out var classInfo7))
+                                {
+                                    classInfo7 = new ClassInfo { Name = className7, ClassTypeId = classType.Id };
+                                    newClassInfos.Add(classInfo7);
+                                    classInfos[classInfoKey7] = classInfo7;
+                                }
+                            }
+
                         }
-                        var classInfoKey = (className, classType.Id);
-                        if (!classInfos.TryGetValue(classInfoKey, out var classInfo))
+                        // else if (type == "ClassV10")
+                        // {
+                        //     var raw = tempClassType[i].Item1 ?? record.DrugClass;
+                        //     var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                        //                      .Select(s => s.Trim())
+                        //                      .Where(s => !string.IsNullOrWhiteSpace(s))
+                        //                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                        //                      .ToList();
+
+                        //     var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MoA", "EPC" };
+                        //     var parsed = items.Select(s =>
+                        //                      {
+                        //                          var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$"); // last [...] tag
+                        //                          var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                        //                          return new { Text = s, Type = t };
+                        //                      })
+                        //                      .Where(x => allowed.Contains(x.Type))
+                        //                      .ToList();
+                        //     var EPCMOAClassList = new List<(string Left, string Right)>();
+                        //     for (int a = 0; a < parsed.Count; a++)
+                        //     {
+                        //         for (int b = a + 1; b < parsed.Count; b++)
+                        //         {
+                        //             var ta = parsed[a].Type;
+                        //             var tb = parsed[b].Type;
+                        //             if (ta.Equals(tb, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        //             // Canonicalize: MoA on left, EPC on right
+                        //             var left = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[a].Text : parsed[b].Text;
+                        //             var right = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[b].Text : parsed[a].Text;
+
+                        //             EPCMOAClassList.Add((left, right));
+                        //         }
+                        //     }
+                        //     foreach (var item in EPCMOAClassList)
+                        //     {
+                        //         var className7 = $"{item.Left.Trim()}|{item.Right.Trim()}|{record.Route}";
+
+                        //         if (string.IsNullOrWhiteSpace(className7))
+                        //             continue;
+
+                        //         var classInfoKey7 = (className7, classType.Id);
+                        //         if (!classInfos.TryGetValue(classInfoKey7, out var classInfo7))
+                        //         {
+                        //             Console.WriteLine("ClassName : " + className7);
+                        //             Console.ReadKey();
+                        //             classInfo7 = new ClassInfo { Name = className7, ClassTypeId = classType.Id };
+                        //             newClassInfos.Add(classInfo7);
+                        //             classInfos[classInfoKey7] = classInfo7;
+                        //         }
+                        //     }
+
+                        // }
+                        else if (type == "ClassV9")
                         {
-                            classInfo = new ClassInfo { Name = className, ClassTypeId = classType.Id };
-                            newClassInfos.Add(classInfo);
-                            classInfos[classInfoKey] = classInfo; // Add to dictionary for future lookups
+                            var raw = tempClassType[i].Item1 ?? record.DrugClass;
+                            var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                                             .Select(s => s.Trim())
+                                             .Where(s => !string.IsNullOrWhiteSpace(s))
+                                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                                             .ToList();
+
+                            var parsed = items.Select(s =>
+                                         {
+                                             var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$");
+                                             var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                                             return new { Text = s, Type = t };
+                                         })
+                                         .ToList();
+
+                            var moas = parsed.Where(x => x.Type.Equals("MoA", StringComparison.OrdinalIgnoreCase))
+                                             .Select(x => x.Text)
+                                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                                             .ToList();
+
+                            var epcs = parsed.Where(x => x.Type.Equals("EPC", StringComparison.OrdinalIgnoreCase))
+                                             .Select(x => x.Text)
+                                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                                             .ToList();
+
+                            // Route comes from the record directly (no split)
+                            var route = record?.Route?.Trim(); // <-- route is here
+                            var routeExists = !string.IsNullOrWhiteSpace(route);
+
+                            // Collect all generated “route strings” and route records
+                            var generated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            var routes = new List<ClassRoute>();
+
+                            void AddCombo(string kind, params string[] parts)
+                            {
+                                var tokens = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+                                if (tokens.Length == 0) return;
+
+                                // Canonical string (joined with '|'), e.g., "MoA|EPC|Route"
+                                var routeString = string.Join("|", tokens);
+                                if (!generated.Add(routeString)) return;
+
+                                // Ensure ClassInfo for the combo string too
+                                var k = (routeString, classType.Id);
+                                if (!classInfos.TryGetValue(k, out var ci))
+                                {
+                                    ci = new ClassInfo { Name = routeString, ClassTypeId = classType.Id };
+                                    newClassInfos.Add(ci);
+                                    classInfos[k] = ci;
+                                }
+
+                                // Record the route (single string, no splitting)
+                                routes.Add(new ClassRoute(routeString, kind));
+                            }
+
+                            // === Build combinations per your rules ===
+
+                            // EPC + MoA (+ Route if present)
+                            if (moas.Count > 0 && epcs.Count > 0)
+                            {
+                                foreach (var moa in moas)
+                                {
+                                    foreach (var epc in epcs)
+                                    {
+                                        if (routeExists) AddCombo("MoA_EPC_ROUTE", moa, epc, route);  // MoA|EPC|Route
+                                        AddCombo("MoA_EPC", moa, epc);                                // MoA|EPC
+                                    }
+                                }
+                            }
+
+                            // EPC + Route
+                            if (epcs.Count > 0 && routeExists)
+                            {
+                                foreach (var epc in epcs)
+                                    AddCombo("EPC_ROUTE", epc, route);                                // EPC|Route
+                            }
+
+                            // MoA + Route
+                            if (moas.Count > 0 && routeExists)
+                            {
+                                foreach (var moa in moas)
+                                    AddCombo("MOA_ROUTE", moa, route);                                // MoA|Route
+                            }
+
+                            // EPC (singles)
+                            if (epcs.Count > 0)
+                            {
+                                foreach (var epc in epcs)
+                                    AddCombo("EPC", epc);                                             // EPC
+                            }
+
+                            // MoA (singles)
+                            if (moas.Count > 0)
+                            {
+                                foreach (var moa in moas)
+                                    AddCombo("MOA", moa);                                             // MoA
+                            }
+
+                            // If there is NO EPC and NO MoA → take what's available
+                            if (moas.Count == 0 && epcs.Count == 0)
+                            {
+                                if (routeExists)
+                                {
+                                    AddCombo("ROUTE", route);                                         // Route only
+                                }
+                                else
+                                {
+                                    // Totally empty → fallback to record.DrugClass
+                                    var fallback = record?.DrugClass?.Trim();
+                                    if (!string.IsNullOrWhiteSpace(fallback))
+                                        AddCombo("FALLBACK_DRUGCLASS", fallback);                     // DrugClass only
+                                }
+                            }
+
+                            // TODO: If you persist routes in DB, iterate `routes` here and upsert.
+                        }
+                        else
+                        {
+                            var className = tempClassType[i].Item1;
+                            if (string.IsNullOrWhiteSpace(className))
+                            {
+                                // Skip if className is null or empty
+                                continue;
+                            }
+                            var classInfoKey = (className, classType.Id);
+                            if (!classInfos.TryGetValue(classInfoKey, out var classInfo))
+                            {
+                                classInfo = new ClassInfo { Name = className, ClassTypeId = classType.Id };
+                                newClassInfos.Add(classInfo);
+                                classInfos[classInfoKey] = classInfo;
+                            }
                         }
                     }
                 }
@@ -404,7 +648,9 @@ namespace SearchTool_ServerSide.Repository
                     (record.ClassV3,"ClassV3"),
                     (record.ClassV4,"ClassV4"),
                     (record.ClassV5,"ClassV5"),
-                    (record.PHARM_CLASSES,"ClassV6")
+                    (record.PHARM_CLASSES,"ClassV6"),
+                    (record.PHARM_CLASSES,"ClassV8"),
+                    (record.PHARM_CLASSES,"ClassV9"),
                 };
 
                 string tempNdc = NormalizeNdcTo11Digits(record.NDC);
@@ -438,23 +684,297 @@ namespace SearchTool_ServerSide.Repository
                                     }
                                 }
                             }
-
-
-                            var className = tempClassType[i].Item1;
-
-                            var classInfoKey = (className, classType.Id);
-
-                            if (classInfos.TryGetValue(classInfoKey, out var classInfo))
+                            else if (classType.Name == "ClassV8")
                             {
-                                if (!drugClasses.ContainsKey((classInfo.Id, drug.Id)))
+                                var raw = tempClassType[i].Item1 ?? string.Empty;
+
+                                // Split only on commas that follow a closing bracket: "...] , ..."
+                                var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                                                 .Select(s => s.Trim())
+                                                 .Where(s => !string.IsNullOrWhiteSpace(s))
+                                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                 .ToList();
+
+                                // Ensure ClassInfo exists for each unique item (your original logic)
+                                foreach (var item in items)
                                 {
-                                    var newDrugClass = new DrugClass
+                                    var className7 = item.Trim();
+                                    if (string.IsNullOrWhiteSpace(className7)) continue;
+
+                                    var classInfoKey7 = (className7, classType.Id);
+                                    if (!classInfos.TryGetValue(classInfoKey7, out var classInfo7))
                                     {
-                                        ClassId = classInfo.Id,
-                                        DrugId = drug.Id
-                                    };
-                                    drugClasses[(classInfo.Id, drug.Id)] = newDrugClass;
-                                    newDrugClasses.Add(newDrugClass);
+                                        classInfo7 = new ClassInfo { Name = className7, ClassTypeId = classType.Id };
+                                        newClassInfos.Add(classInfo7);
+                                        classInfos[classInfoKey7] = classInfo7;
+                                    }
+                                }
+
+                                // Keep only MoA/EPC entries and parse their type tag
+                                var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MoA", "EPC" };
+                                var parsed = items.Select(s =>
+                                                 {
+                                                     var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$"); // last [...] tag
+                                                     var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                                                     return new { Text = s, Type = t };
+                                                 })
+                                                 .Where(x => allowed.Contains(x.Type))
+                                                 .ToList();
+
+                                var EPCMOAClassList = new List<(string Left, string Right)>();
+                                for (int a = 0; a < parsed.Count; a++)
+                                {
+                                    for (int b = a + 1; b < parsed.Count; b++)
+                                    {
+                                        var ta = parsed[a].Type;
+                                        var tb = parsed[b].Type;
+                                        if (ta.Equals(tb, StringComparison.OrdinalIgnoreCase)) continue;
+
+                                        // Canonicalize: MoA on left, EPC on right
+                                        var left = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[a].Text : parsed[b].Text;
+                                        var right = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[b].Text : parsed[a].Text;
+
+                                        EPCMOAClassList.Add((left, right));
+                                    }
+                                }
+                                foreach (var epcmoa in EPCMOAClassList)
+                                {
+                                    var classInfoKey6 = ($"{epcmoa.Left.Trim()}|{epcmoa.Right.Trim()}", classType.Id);
+                                    if (classInfos.ContainsKey(classInfoKey6))
+                                    {
+                                        var classInfo6 = classInfos[classInfoKey6];
+                                        if (!drugClasses.ContainsKey((classInfo6.Id, drug.Id)))
+                                        {
+                                            var newDrugClass = new DrugClass
+                                            {
+                                                ClassId = classInfo6.Id,
+                                                DrugId = drug.Id
+                                            };
+                                            drugClasses[(classInfo6.Id, drug.Id)] = newDrugClass;
+                                            newDrugClasses.Add(newDrugClass);
+                                        }
+                                    }
+                                }
+                            }
+
+                            // if (classType.Name == "ClassV10")
+                            // {
+                            //     var raw = tempClassType[i].Item1 ?? record.DrugClass;
+
+                            //     // Split only on commas that follow a closing bracket: "...] , ..."
+                            //     var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                            //                      .Select(s => s.Trim())
+                            //                      .Where(s => !string.IsNullOrWhiteSpace(s))
+                            //                      .Distinct(StringComparer.OrdinalIgnoreCase)
+                            //                      .ToList();
+
+                            //     // Ensure ClassInfo exists for each unique item (your original logic)
+                            //     foreach (var item in items)
+                            //     {
+                            //         var className7 = item.Trim();
+                            //         if (string.IsNullOrWhiteSpace(className7)) continue;
+
+                            //         var classInfoKey7 = (className7, classType.Id);
+                            //         if (!classInfos.TryGetValue(classInfoKey7, out var classInfo7))
+                            //         {
+                            //             classInfo7 = new ClassInfo { Name = className7, ClassTypeId = classType.Id };
+                            //             newClassInfos.Add(classInfo7);
+                            //             classInfos[classInfoKey7] = classInfo7;
+                            //         }
+                            //     }
+
+                            //     // Keep only MoA/EPC entries and parse their type tag
+                            //     var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MoA", "EPC" };
+                            //     var parsed = items.Select(s =>
+                            //                      {
+                            //                          var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$"); // last [...] tag
+                            //                          var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                            //                          return new { Text = s, Type = t };
+                            //                      })
+                            //                      .Where(x => allowed.Contains(x.Type))
+                            //                      .ToList();
+
+                            //     var EPCMOAClassList = new List<(string Left, string Right)>();
+                            //     for (int a = 0; a < parsed.Count; a++)
+                            //     {
+                            //         for (int b = a + 1; b < parsed.Count; b++)
+                            //         {
+                            //             var ta = parsed[a].Type;
+                            //             var tb = parsed[b].Type;
+                            //             if (ta.Equals(tb, StringComparison.OrdinalIgnoreCase)) continue;
+
+                            //             // Canonicalize: MoA on left, EPC on right
+                            //             var left = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[a].Text : parsed[b].Text;
+                            //             var right = ta.Equals("MoA", StringComparison.OrdinalIgnoreCase) ? parsed[b].Text : parsed[a].Text;
+
+                            //             EPCMOAClassList.Add((left, right));
+                            //         }
+                            //     }
+                            //     foreach (var epcmoa in EPCMOAClassList)
+                            //     {
+                            //         var classInfoKey6 = ($"{epcmoa.Left.Trim()}|{epcmoa.Right.Trim()}|{record.Route}", classType.Id);
+                            //         if (classInfos.ContainsKey(classInfoKey6))
+                            //         {
+                            //             var classInfo6 = classInfos[classInfoKey6];
+                            //             if (!drugClasses.ContainsKey((classInfo6.Id, drug.Id)))
+                            //             {
+                            //                 var newDrugClass = new DrugClass
+                            //                 {
+                            //                     ClassId = classInfo6.Id,
+                            //                     DrugId = drug.Id
+                            //                 };
+                            //                 drugClasses[(classInfo6.Id, drug.Id)] = newDrugClass;
+                            //                 newDrugClasses.Add(newDrugClass);
+                            //             }
+                            //         }
+                            //     }
+                            // }
+
+                            else if (classType.Name == "ClassV9")
+                            {
+                                // Raw value
+                                var raw = tempClassType[i].Item1 ?? record.DrugClass;
+
+                                // Split only on commas that follow a closing bracket: "...] , ..."
+                                var items = Regex.Split(raw.Trim(), @"(?<=\])\s*,\s*")
+                                                 .Select(s => s.Trim())
+                                                 .Where(s => !string.IsNullOrWhiteSpace(s))
+                                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                 .ToList();
+
+                                // Parse trailing bracket tag (e.g., "... [MoA]" -> "MoA")
+                                var parsed = items.Select(s =>
+                                             {
+                                                 var m = Regex.Match(s, @"\[(?<t>[^\]]+)\]\s*$");
+                                                 var t = m.Success ? m.Groups["t"].Value.Trim() : string.Empty;
+                                                 return new { Text = s, Type = t };
+                                             })
+                                             .ToList();
+
+                                var moas = parsed.Where(x => x.Type.Equals("MoA", StringComparison.OrdinalIgnoreCase))
+                                                 .Select(x => x.Text)
+                                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                 .ToList();
+
+                                var epcs = parsed.Where(x => x.Type.Equals("EPC", StringComparison.OrdinalIgnoreCase))
+                                                 .Select(x => x.Text)
+                                                 .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                 .ToList();
+
+                                // Route comes from the record directly (no split)
+                                var route = record?.Route?.Trim(); // <-- route is here
+                                var routeExists = !string.IsNullOrWhiteSpace(route);
+
+                                // Collect all generated “route strings” and route records
+                                var generated = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                                var routes = new List<ClassRoute>();
+
+                                void AddCombo(string kind, params string[] parts)
+                                {
+                                    var tokens = parts.Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+                                    if (tokens.Length == 0) return;
+
+                                    // Canonical string (joined with '|'), e.g., "MoA|EPC|Route"
+                                    var routeString = string.Join("|", tokens);
+                                    if (!generated.Add(routeString)) return;
+
+                                    // Ensure ClassInfo for the combo string too
+                                    var k = (routeString, classType.Id);
+                                    if (classInfos.TryGetValue(k, out var ci))
+                                    {
+                                        var classInfo6 = ci;
+                                        if (!drugClasses.ContainsKey((classInfo6.Id, drug.Id)))
+                                        {
+                                            var newDrugClass = new DrugClass
+                                            {
+                                                ClassId = classInfo6.Id,
+                                                DrugId = drug.Id
+                                            };
+                                            drugClasses[(classInfo6.Id, drug.Id)] = newDrugClass;
+                                            newDrugClasses.Add(newDrugClass);
+                                        }
+                                    }
+
+                                }
+
+                                // === Build combinations per your rules ===
+
+                                // EPC + MoA (+ Route if present)
+                                if (moas.Count > 0 && epcs.Count > 0)
+                                {
+                                    foreach (var moa in moas)
+                                    {
+                                        foreach (var epc in epcs)
+                                        {
+                                            if (routeExists) AddCombo("MoA_EPC_ROUTE", moa, epc, route);  // MoA|EPC|Route
+                                            else
+                                                AddCombo("MoA_EPC", moa, epc);                                // MoA|EPC
+                                        }
+                                    }
+                                }
+
+                                // EPC + Route
+                                else if (epcs.Count > 0 && routeExists)
+                                {
+                                    foreach (var epc in epcs)
+                                        AddCombo("EPC_ROUTE", epc, route);                                // EPC|Route
+                                }
+
+                                // MoA + Route
+                                else if (moas.Count > 0 && routeExists)
+                                {
+                                    foreach (var moa in moas)
+                                        AddCombo("MOA_ROUTE", moa, route);                                // MoA|Route
+                                }
+
+                                // EPC (singles)
+                                else if (epcs.Count > 0)
+                                {
+                                    foreach (var epc in epcs)
+                                        AddCombo("EPC", epc);                                             // EPC
+                                }
+
+                                // MoA (singles)
+                                else if (moas.Count > 0)
+                                {
+                                    foreach (var moa in moas)
+                                        AddCombo("MOA", moa);                                             // MoA
+                                }
+
+                                // If there is NO EPC and NO MoA → take what's available
+                                else if (moas.Count == 0 && epcs.Count == 0)
+                                {
+                                    if (routeExists)
+                                    {
+                                        AddCombo("ROUTE", record.DrugClass);                                         // Route only
+                                    }
+                                    else
+                                    {
+                                        // Totally empty → fallback to record.DrugClass
+                                        var fallback = record?.DrugClass?.Trim();
+                                        if (!string.IsNullOrWhiteSpace(fallback))
+                                            AddCombo("FALLBACK_DRUGCLASS", fallback);                     // DrugClass only
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var className = tempClassType[i].Item1;
+
+                                var classInfoKey = (className, classType.Id);
+
+                                if (classInfos.TryGetValue(classInfoKey, out var classInfo))
+                                {
+                                    if (!drugClasses.ContainsKey((classInfo.Id, drug.Id)))
+                                    {
+                                        var newDrugClass = new DrugClass
+                                        {
+                                            ClassId = classInfo.Id,
+                                            DrugId = drug.Id
+                                        };
+                                        drugClasses[(classInfo.Id, drug.Id)] = newDrugClass;
+                                        newDrugClasses.Add(newDrugClass);
+                                    }
                                 }
                             }
 
@@ -1912,9 +2432,9 @@ namespace SearchTool_ServerSide.Repository
             return items;
         }
 
-        private async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsV6(string sourceDrugNDC)
+        private async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugsAlternativesDynamic(int classTypeId, string sourceDrugNDC)
         {
-            // 1) Find the source drug and all class IDs it belongs to
+            // 1) Find the source drug
             var sourceDrug = await _context.Drugs
                 .AsNoTracking()
                 .FirstOrDefaultAsync(d => d.NDC == sourceDrugNDC);
@@ -1922,24 +2442,26 @@ namespace SearchTool_ServerSide.Repository
             if (sourceDrug == null)
                 return new List<DrugsAlternativesReadDto>();
 
-            var sourceClassIds = await _context.DrugClasses
-                .AsNoTracking()
-                .Where(dc => dc.DrugId == sourceDrug.Id)
-                .Select(dc => dc.ClassId)
-                .Distinct()
-                .ToListAsync();
+            // 2) Find ALL classes (ClassInfoId) the source drug belongs to **for this class type**
+            var sourceClassIds = await (
+                from dc in _context.DrugClasses.AsNoTracking()
+                join ci in _context.ClassInfos.AsNoTracking() on dc.ClassId equals ci.Id
+                where dc.DrugId == sourceDrug.Id
+                      && ci.ClassTypeId == classTypeId          // << filter by class type here
+                select dc.ClassId
+            ).Distinct().ToListAsync();
 
             if (sourceClassIds.Count == 0)
                 return new List<DrugsAlternativesReadDto>();
 
-            // 2) Query all drugs that are in ANY of those classes (alternatives)
+            // 3) Query all alternative drugs that are in ANY of those class infos (same class type)
             var query =
                 from dc in _context.DrugClasses
                 where sourceClassIds.Contains(dc.ClassId)
                 join d in _context.Drugs on dc.DrugId equals d.Id
-                // exclude the source drug row itself from alternatives
-                where d.NDC != sourceDrugNDC
+                where d.NDC != sourceDrugNDC                       // exclude source drug
                 join ci in _context.ClassInfos on dc.ClassId equals ci.Id
+                where ci.ClassTypeId == classTypeId                // << and enforce class type again at read time
 
                 // LEFT JOIN DrugInsurances
                 join diGroup in _context.DrugInsurances on dc.DrugId equals diGroup.DrugId into diGroup
@@ -1951,7 +2473,7 @@ namespace SearchTool_ServerSide.Repository
                     equals new { dbGroup.DrugNDC, dbGroup.BranchId } into dbGroup
                 from db in dbGroup.DefaultIfEmpty()
 
-                    // Correlated subquery: latest report for (source, target, insurance)
+                    // Latest report for (source, target, insurance)
                 let latestReport =
                     di == null ? null :
                     _context.Reports
@@ -1961,7 +2483,7 @@ namespace SearchTool_ServerSide.Repository
                             r.TargetDrugNDC == di.NDCCode &&
                             r.InsuranceRxId == di.InsuranceId)
                         .OrderByDescending(r => r.StatusDate)
-                        .ThenByDescending(r => r.Id) // tie-breaker
+                        .ThenByDescending(r => r.Id)
                         .FirstOrDefault()
 
                 select new
@@ -1976,16 +2498,15 @@ namespace SearchTool_ServerSide.Repository
 
             var list = await query.AsNoTracking().ToListAsync();
 
-            // 3) Lookup dictionaries
-            var branchDict = await _context.Branches.AsNoTracking()
-                .ToDictionaryAsync(x => x.Id);
+            // 4) Lookups
+            var branchDict = await _context.Branches.AsNoTracking().ToDictionaryAsync(x => x.Id);
 
             var insuranceRxDict = await _context.InsuranceRxes
                 .Include(ir => ir.InsurancePCN).ThenInclude(ipcn => ipcn.Insurance)
                 .AsNoTracking()
                 .ToDictionaryAsync(x => x.Id);
 
-            // 4) Map to DTOs
+            // 5) Map to DTOs
             var result = list.Select(item =>
             {
                 var di = item.DrugInsurance;
@@ -2009,7 +2530,7 @@ namespace SearchTool_ServerSide.Repository
 
                 dto.DrugName = item.Drug.Name;
                 dto.NDCCode = item.Drug.NDC;
-                dto.DrugClassId = item.DrugClass.Id;   // which class this alternative came from
+                dto.DrugClassId = item.DrugClass.Id;     // which DrugClass row this alternative came from
                 dto.DrugClass = item.ClassInfo.Name;
                 dto.Quantity = di?.Quantity ?? 1;
                 dto.ApplicationNumber = item.Drug.ApplicationNumber;
@@ -2024,7 +2545,6 @@ namespace SearchTool_ServerSide.Repository
                 dto.Stock = item.DrugBranch?.Stock ?? 0;
                 dto.ScriptCode = di?.ScriptCode;
 
-                // Insurance details (if any)
                 if (di != null && insuranceRxDict.TryGetValue(di.InsuranceId, out var insuranceRx))
                 {
                     dto.insuranceName = insuranceRx.RxGroup;
@@ -2036,7 +2556,6 @@ namespace SearchTool_ServerSide.Repository
                     dto.pcnId = insuranceRx.InsurancePCN?.Id ?? 0;
                     dto.rxgroupId = insuranceRx.Id;
 
-                    // Latest report snapshot
                     dto.Status = latest?.Status ?? "Not Available";
                     dto.StatusDescription = latest?.StatusDescription ?? "No additional information";
                     dto.AdditionalInfo = latest?.AdditionalInfo;
@@ -2054,8 +2573,8 @@ namespace SearchTool_ServerSide.Repository
 
                 return dto;
             })
-            // Optional: de-duplicate final list by (NDC, InsuranceId) if the same alternative shows up via multiple classes
-            // .GroupBy(x => new { x.NDCCode, x.rxgroupId })  // or include bin/pcn if needed
+            // Optional: de-dupe if alternatives appear via multiple class infos
+            // .GroupBy(x => new { x.NDCCode, x.rxgroupId })
             // .Select(g => g.First())
             .ToList();
 
@@ -2065,9 +2584,9 @@ namespace SearchTool_ServerSide.Repository
         internal async Task<ICollection<DrugsAlternativesReadDto>> GetAllDrugs(int classInfoId, string sourceDrugNDC)
         {
             var tempCLass = await _context.ClassInfos.FirstOrDefaultAsync(x => x.Id == classInfoId);
-            if (tempCLass.ClassTypeId == 7)
+            if (tempCLass.ClassTypeId >= 7)
             {
-                return await GetAllDrugsV6(sourceDrugNDC);
+                return await GetAllDrugsAlternativesDynamic(tempCLass.ClassTypeId, sourceDrugNDC);
             }
             var query =
                 from dc in _context.DrugClasses

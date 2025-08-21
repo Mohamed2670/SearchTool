@@ -100,13 +100,15 @@ namespace SearchTool_ServerSide.Repository
         {
             if (request is null) throw new ArgumentNullException(nameof(request));
 
+            // Normalize incoming status
+            var inputStatus = request.Status?.Trim();
+
             // 1) Ensure the parent InsuranceStatus exists (composite PK)
             var status = await _context.InsuranceStatuses.FindAsync(
                 new object[] { request.SourceDrugNDC, request.TargetDrugNDC, request.InsuranceRxId }, ct);
 
-
-            if(status == null)
-{
+            if (status == null)
+            {
                 _context.InsuranceStatuses.Add(new InsuranceStatus
                 {
                     SourceDrugNDC = request.SourceDrugNDC,
@@ -115,6 +117,7 @@ namespace SearchTool_ServerSide.Repository
                     ApprovedStatus = "NA",
                     PriorAuthorizationStatus = "NA"
                 });
+
                 try
                 {
                     await _context.SaveChangesAsync(ct);
@@ -124,9 +127,7 @@ namespace SearchTool_ServerSide.Repository
                 }
                 catch (DbUpdateException)
                 {
-                    // Optionally inspect inner exception for unique violation codes and rethrow otherwise.
-                    // For brevity we're swallowing here; the next insert uses the existing row.
-                    // Try to fetch the status again in case it was inserted by another process
+                    // Another process may have inserted it; try to fetch again
                     status = await _context.InsuranceStatuses.FindAsync(
                         new object[] { request.SourceDrugNDC, request.TargetDrugNDC, request.InsuranceRxId }, ct);
                 }
@@ -135,10 +136,22 @@ namespace SearchTool_ServerSide.Repository
             // Only update if status is not null
             if (status != null)
             {
-                var Approved = request.Status == "Approved" ? "Approved" : request.Status == "Rejected" ? "Rejected" : status.ApprovedStatus ?? "NA";
-                var PriorAuthorization = request.Status == "PriorAuthorizationYes" ? "Yes" : request.Status == "PriorAuthorizationNo" ? "No" : status.PriorAuthorizationStatus ?? "NA";
-                status.ApprovedStatus = Approved;
-                status.PriorAuthorizationStatus = PriorAuthorization;
+                // Approved/Rejected mapping
+                status.ApprovedStatus = inputStatus switch
+                {
+                    "Approved" => "Approved",
+                    "Rejected" => "Rejected",
+                    _ => status.ApprovedStatus ?? "NA"
+                };
+
+                // PA mapping (adds "Refile" alongside Yes/No)
+                status.PriorAuthorizationStatus = inputStatus switch
+                {
+                    "PriorAuthorizationYes" => "Yes",
+                    "PriorAuthorizationNo" => "No",
+                    "PriorAuthorizationRefile" => "Refile",
+                    _ => status.PriorAuthorizationStatus ?? "NA"
+                };
             }
 
             // 2) Append a new Report row (history)
@@ -148,7 +161,7 @@ namespace SearchTool_ServerSide.Repository
                 TargetDrugNDC = request.TargetDrugNDC,
                 InsuranceRxId = request.InsuranceRxId,
 
-                Status = string.IsNullOrWhiteSpace(request.Status) ? "NA" : request.Status,
+                Status = string.IsNullOrWhiteSpace(inputStatus) ? "NA" : inputStatus,
                 StatusDescription = "NA",
                 AdditionalInfo = "NA",
                 StatusDate = DateTime.UtcNow,
